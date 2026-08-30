@@ -96,47 +96,56 @@ Bharat Academix is an end-to-end autonomous educational engine:
 
 ```mermaid
 flowchart TD
-    User([Learner Browser]) <-->|Next.js 14 Client| Frontend[Frontend UI Layer\nReact / TypeScript / TailwindCSS]
+    User([Learner Browser]) <-->|Next.js 14 Client| Frontend[Frontend UI Layer<br/>React / TypeScript / TailwindCSS]
     
     subgraph Frontend Layer
         AppShell[AppShell & Floating Dock]
-        Avatar[AvatarTeacher Engine\nWord-Boundary Web Speech]
+        Avatar[AvatarTeacher Engine<br/>Word-Boundary Web Speech]
         WB[Subject-Aware Whiteboard]
         Card[Adaptive Question Card]
         I18n[Global LanguageContext]
     end
 
-    Frontend <-->|REST / JSON API| Backend[FastAPI Backend Server\nPort 8000]
+    Frontend <-->|REST / JSON API| Backend[FastAPI Backend Server<br/>Port 8000]
 
     subgraph Backend Routing
-        R_Lessons[/lessons/*]
-        R_Sessions[/session/*]
-        R_Materials[/materials/*]
-        R_Assessment[/assessment/*]
-        R_Report[/report/*]
+        R_Lessons["/lessons/* Router"]
+        R_Sessions["/session/* Router"]
+        R_Materials["/materials/* Router"]
+        R_Assessment["/assessment/* Router"]
+        R_Report["/report/* Router"]
     end
 
-    Backend --> AgentOrch[AI Agent Orchestrator\nModel Tiering Engine]
+    Backend --> AgentOrch[AI Agent Orchestrator<br/>Model Tiering Engine]
 
     subgraph AI Agents Layer
         direction TB
-        A1[Content Analyzer\nHaiku 4.5]
-        A2[Lesson Planner\nSonnet 5]
-        A3[Teaching Agent\nSonnet 5]
-        A4[Visual Planner\nHaiku 4.5]
-        A5[Question Generator\nHaiku 4.5]
-        A6[Response Evaluator\nHaiku 4.5]
-        A7[Misconception Detector\nSonnet 5]
-        A8[Adaptive Teacher\nSonnet 5]
-        A9[Assessment Engine\nSonnet 5]
-        A10[Learning Profile Engine\nHaiku 4.5]
+        A1[Content Analyzer<br/>Haiku 4.5]
+        A2[Lesson Planner<br/>Sonnet 5]
+        A3[Teaching Agent<br/>Sonnet 5]
+        A4[Visual Planner<br/>Haiku 4.5]
+        A5[Question Generator<br/>Haiku 4.5]
+        A6[Response Evaluator<br/>Haiku 4.5]
+        A7[Misconception Detector<br/>Sonnet 5]
+        A8[Adaptive Teacher<br/>Sonnet 5]
+        A9[Assessment Engine<br/>Sonnet 5]
+        A10[Learning Profile Engine<br/>Haiku 4.5]
     end
 
-    AgentOrch <--> A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8 & A9 & A10
+    AgentOrch <--> A1
+    AgentOrch <--> A2
+    AgentOrch <--> A3
+    AgentOrch <--> A4
+    AgentOrch <--> A5
+    AgentOrch <--> A6
+    AgentOrch <--> A7
+    AgentOrch <--> A8
+    AgentOrch <--> A9
+    AgentOrch <--> A10
 
-    AgentOrch <--> ClaudeClient[Anthropic Claude API\nSonnet 5 / Haiku 4.5]
-    Backend <--> SQLite[(SQLite Database\n14 Entity Models)]
-    Backend <--> RAG[RAG Ingestion Service\nChromaDB Persistent Client\nall-MiniLM-L6-v2 Embeddings]
+    AgentOrch <--> ClaudeClient[Anthropic Claude API<br/>Sonnet 5 / Haiku 4.5]
+    Backend <--> SQLite[(SQLite Database<br/>14 Entity Models)]
+    Backend <--> RAG[RAG Ingestion Service<br/>ChromaDB Persistent Client<br/>all-MiniLM-L6-v2 Embeddings]
 ```
 
 ### Architectural Layers

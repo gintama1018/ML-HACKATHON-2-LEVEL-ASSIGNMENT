@@ -1,0 +1,796 @@
+================================================================================
+AI TEACHER — MASTER PLANNING DOCUMENT
+AI Innovation Hackathon 2026 — "AI Teacher" Challenge (Bharat Academix)
+Round 2 Technical Assessment — Pre-Build Plan (No code in this document)
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 0 — SCOPE & ASSUMPTIONS (read this before anything else)
+--------------------------------------------------------------------------------
+- No existing repository/codebase was found or provided for this project. This
+  plan assumes a GREENFIELD build. Section 1 below is written as an audit
+  TEMPLATE, not an audit of real code — because there is no real code yet.
+  If a partial repo shows up later, Section 1 must be re-run against the
+  actual files before any new work starts. Skipping that step is exactly how
+  half-built AI-generated apps happen.
+
+- Recommended stack (justified in Section 8):
+    Frontend  : Next.js (React) + Tailwind
+    Backend   : FastAPI (Python)
+    Database  : PostgreSQL (SQLite acceptable for hackathon demo scale)
+    RAG store : pgvector (or Chroma if kept simpler) for embeddings
+    Core LLM  : Anthropic Claude API (planning, teaching, evaluation, RAG answers)
+    TTS       : Browser Web Speech API as DEV FALLBACK, provider interface
+                ready for ElevenLabs / Azure TTS in production
+    Avatar    : Simple 2D/SVG animated avatar (viseme-driven, lip-sync to audio
+                timing) as DEV FALLBACK, provider interface ready for
+                D-ID / HeyGen / Tavus in production
+
+- "Actually working" bar for this whole plan: every screen and every button in
+  Sections 4 and 5 must trigger a real backend call and a real state change
+  that can be demonstrated live. A screen or button that only looks right is
+  treated as NOT implemented, full stop — this matches Phase 17's own rule
+  from the original brief and is kept as the audit standard throughout.
+
+- Any place where a "dev fallback" is used instead of a paid third-party
+  service is explicitly labeled FALLBACK in this document. Nothing is silently
+  faked. Judges reading the documentation will see exactly what's real,
+  what's a placeholder-with-real-behavior, and what needs an API key to go
+  fully production.
+
+
+--------------------------------------------------------------------------------
+SECTION 1 — EXISTING PROJECT AUDIT (template — nothing exists yet to audit)
+--------------------------------------------------------------------------------
+Run this checklist the moment any code exists (yours or AI-generated), BEFORE
+adding new features on top of it:
+
+  [ ] Framework & language versions
+  [ ] Frontend architecture (routing, component structure, state management)
+  [ ] Backend architecture (framework, folder structure, request lifecycle)
+  [ ] Database schema currently in use (if any)
+  [ ] API routes already defined — list method + path + purpose
+  [ ] AI/LLM integrations already wired — which provider, which calls actually
+      fire vs which are stubbed
+  [ ] Auth/session handling (if any)
+  [ ] File upload handling — what file types actually parse today
+  [ ] Existing UI screens — list each, and whether its buttons are wired
+  [ ] Existing design system (colors, components, spacing) to preserve
+  [ ] Environment variables currently defined
+  [ ] Dependencies installed but unused (dead weight / abandoned attempts)
+  [ ] Mock/fake data currently hardcoded anywhere
+  [ ] TODO/FIXME comments — collect all of them
+  [ ] Any button, screen, or "feature" that LOOKS done but has no working
+      backend call behind it — flag explicitly, this is the exact failure
+      pattern that keeps happening
+
+Current status: N/A — greenfield. Do not skip this section next time code
+exists; re-run it fresh.
+
+
+--------------------------------------------------------------------------------
+SECTION 2 — REQUIREMENT MATRIX
+--------------------------------------------------------------------------------
+
+2.1 MANDATORY REQUIREMENTS (assessment Section 17) — mapped to owning system
+--------------------------------------------------------------------------------
+ #  Requirement                                   Owning system (Section 7)
+--------------------------------------------------------------------------------
+ 1  Learning from uploaded material/documents      Content Analyzer + RAG
+ 2  Topic-based teaching                           Lesson Planner (no-material path)
+ 3  AI-generated lesson structure                  Lesson Planner
+ 4  Personalized teaching                          Teaching Agent + Learner Profile
+ 5  Human-like teaching interaction                Teaching Agent + Question Gen
+ 6  Video-based AI Teacher presentation             Video/Avatar Orchestrator
+ 7  AI voice                                       TTS Provider Interface
+ 8  Human-like AI avatar                           Avatar Provider Interface
+ 9  Multilingual capability                        Teaching Agent (language param)
+10  Student questioning and assessment             Question Generator + Assessment Engine
+11  Adaptive response to student performance       Response Evaluator + Misconception
+                                                     Detector + Adaptive Teacher
+12  Working application/prototype                  All of the above, integrated
+
+2.2 ADVANCED / OPTIONAL FEATURES (Section 18) — priority if time remains
+--------------------------------------------------------------------------------
+HIGH value / LOW cost (do these if any spare time exists):
+  - Flashcard generation (derived from lesson plan, no new infra)
+  - Automatic notes (derived from lesson transcript, no new infra)
+  - Concept maps (derived from lesson plan structure)
+  - Learning analytics (mostly a view over data already being persisted)
+
+MEDIUM value / MEDIUM cost:
+  - Revision mode / exam prep mode (reuses existing lesson+assessment engine)
+  - Automatic study planner (reuses learning path engine)
+
+LOW priority / HIGH cost — cut first if time-constrained:
+  - Multiple teacher personalities
+  - Emotion-aware interaction
+  - Offline/local AI models
+  - Multiple AI teacher characters
+  - Long-term memory beyond basic profile history
+
+2.3 EVALUATION CRITERIA & WEIGHTAGE (Section 19) — build priority should follow this
+--------------------------------------------------------------------------------
+ Area                                        Weight   Plan priority
+--------------------------------------------------------------------------------
+ Human-Like Teaching and Adaptation            20      P0 — build & verify first
+ AI/ML and LLM Implementation                  15      P0
+ RAG and Knowledge Grounding                   15      P0
+ AI Teaching Video Generation                  15      P1 — fallback acceptable
+                                                        if clearly documented
+ Multilingual Capability                       10      P1
+ Voice and AI Avatar                           10      P1 — fallback acceptable
+ Innovation and Originality                     5      P2
+ User Experience and Interface                  5      P2
+ Documentation and Technical Presentation       5      P2 — but never skip,
+                                                        it's free points
+--------------------------------------------------------------------------------
+ TOTAL                                        100
+--------------------------------------------------------------------------------
+Reading of this table: 65 of 100 points (Human-like teaching + AI/LLM + RAG +
+Video) depend on the CORE LOOP and RAG actually working end-to-end. Only 20
+points depend on voice/avatar polish. This means: if time runs out, a text+
+working-fallback-voice teacher with real adaptive logic and real RAG scores
+higher than a fake photorealistic avatar wrapped around a static script —
+which the assessment explicitly penalizes anyway (Section 19 evaluation focus
+note in the original doc).
+
+2.4 TASK 1 REQUIREMENTS — AI Teaching Video
+--------------------------------------------------------------------------------
+  - Understand provided material or topic
+  - Create structured lesson
+  - Adapt to learner level + available time
+  - Explain via avatar + voice
+  - Use relevant visuals (diagrams/examples/formulas/images/code)
+  - Multiple languages
+  - Deliver as video, not plain text
+
+2.5 TASK 2 REQUIREMENTS — Interactive & Adaptive AI Teacher
+--------------------------------------------------------------------------------
+  - Ask questions during lesson
+  - Evaluate responses
+  - Identify incorrect answers/knowledge gaps
+  - Re-explain when struggling
+  - Change difficulty based on performance
+  - Answer follow-ups while keeping lesson context
+  - Final assessment/quiz
+  - Personalized feedback + next-topic recommendation
+
+2.6 DEMO JOURNEY REQUIREMENTS (Section 20)
+--------------------------------------------------------------------------------
+  Upload/Topic → Lesson Planning → AI Teaching Video → Student Interaction →
+  Adaptation → Assessment → Learning Feedback
+  Demo video length: 3–7 minutes, must show this complete journey live.
+
+2.7 DOCUMENTATION REQUIREMENTS (Section 20)
+--------------------------------------------------------------------------------
+  Problem statement, solution overview, key features, system architecture,
+  AI/ML models used, RAG implementation, prompt/agent architecture,
+  personalization approach, assessment methodology, multilingual
+  implementation, voice implementation, avatar/video generation approach,
+  APIs/third-party services disclosed, setup instructions, deployment
+  instructions, known limitations (this last one matters — listing the video/
+  voice fallback honestly here is a strength, not a weakness).
+
+
+--------------------------------------------------------------------------------
+SECTION 3 — COMPLETE USER FLOW
+--------------------------------------------------------------------------------
+LANDING / DASHBOARD
+  → shows: continue existing lesson (if any in progress) OR start new lesson
+        ↓
+CREATE LESSON
+  → CHOOSE: Upload Material  OR  Enter Topic
+        ↓
+LEARNER PROFILE (form, one-time per lesson, editable)
+  → education level, existing knowledge, objective, language, style,
+    available time, desired depth
+        ↓
+AI ANALYZES INPUT                      [real backend call, async job]
+  - if uploaded: Content Analyzer extracts + chunks + embeds material
+  - if topic only: Lesson Planner works from topic directly
+        ↓
+CONTENT UNDERSTANDING / RAG            [only for uploaded-material path]
+  - retrieval index built, key concepts/sections surfaced to the user so they
+    can SEE what the AI understood (this is also a judging point — "show the
+    user the lesson is based on their material")
+        ↓
+LESSON PLAN GENERATION                 [real backend call]
+        ↓
+LESSON PREVIEW                         [editable — user can reorder/skip topics
+                                         before starting]
+        ↓
+START AI CLASS                         [creates a persisted lesson session]
+        ↓
+──────────────── CORE ADAPTIVE LOOP (repeats per concept) ────────────────
+AI TEACHER VIDEO / EXPLANATION (avatar+voice+on-screen text+visual)
+        ↓
+VISUAL DEMONSTRATION (subject-aware: graph/diagram/code/timeline/etc.)
+        ↓
+QUESTION (conceptual / MCQ / short-answer / problem / application)
+        ↓
+STUDENT RESPONSE
+        ↓
+RESPONSE EVALUATION                    [real backend call to Response Evaluator]
+        ↓
+   IF UNDERSTOOD  → mark concept mastered, increase difficulty, continue
+   IF NOT UNDERSTOOD:
+        → Misconception Detector explains WHY the answer is wrong
+        → Adaptive Teacher gives alternative explanation (different analogy)
+        → New question generated
+        → Re-evaluate
+        → loop continues until mastery threshold or max retries, then move on
+          and flag as a weak area for the final report
+──────────────────────────────────────────────────────────────────────────
+        ↓ (after all planned concepts covered)
+FINAL ASSESSMENT (quiz across the whole lesson)
+        ↓
+LEARNING REPORT (score, strong areas, weak areas, recommended revision,
+                 recommended next topic)
+        ↓
+STUDENT PROFILE UPDATED (persisted — visible on return visits)
+        ↓
+LEARNING PATH / NEXT TOPIC suggested from profile + report
+
+
+--------------------------------------------------------------------------------
+SECTION 4 — SCREEN / STATE MAP
+--------------------------------------------------------------------------------
+Template applied to every screen: Purpose | User action | Required data |
+API dependency | Loading | Empty | Error | Success | Navigation | Persistence |
+Refresh behavior | API-failure behavior | Back-navigation behavior
+
+--- SCREEN: Landing / Dashboard ---
+Purpose            : Entry point; resume or start a lesson
+User action        : Click "New Lesson" or click an in-progress lesson card
+Required data      : List of the student's lessons (if profile exists)
+API dependency     : GET /lessons?student_id=
+Loading            : Skeleton cards
+Empty              : "No lessons yet" + CTA to start one
+Error              : "Couldn't load your lessons" + Retry button
+Success            : Renders lesson cards with status (in-progress/completed)
+Navigation         : → Create Lesson, or → resume existing Teaching Session
+Persistence        : Reads from DB, no writes
+On refresh         : Re-fetches list, no data lost (nothing was in-flight)
+On API failure     : Retry button; does not silently show fake/cached data
+                      unless explicitly labeled "cached"
+Back navigation    : N/A — this is the root screen
+
+--- SCREEN: Create Lesson (Upload / Topic choice) ---
+Purpose            : Choose the input mode for the lesson
+User action        : Select "Upload Material" or "Enter Topic"; if upload,
+                      pick file; if topic, type free text
+Required data      : File (pdf/doc/docx/ppt/pptx) or topic string
+API dependency     : POST /materials/upload  (multipart)  OR none yet for topic
+Loading            : Upload progress bar with %  (real, not fake — tied to
+                      actual upload bytes sent)
+Empty              : N/A
+Error              : Unsupported file type / file too large / corrupt file —
+                      specific message per case, not a generic failure
+Success            : File accepted → moves to processing state
+Navigation         : → Learner Profile
+Persistence        : File stored (object storage or local disk for hackathon
+                      scale) + Material row created in DB with status=uploaded
+On refresh         : If upload was mid-flight, it is lost — user must re-upload
+                      (document this as a known limitation; do not fake a
+                      "resume upload" feature that doesn't exist)
+On API failure     : Clear error + Retry, keeps the already-typed topic text
+                      if user was on that path
+Back navigation    : Returns to Dashboard, no orphaned material rows left in
+                      an "uploading" state without cleanup
+
+--- SCREEN: Learner Profile Form ---
+Purpose            : Capture personalization parameters
+User action        : Fill level, existing knowledge, objective, language,
+                      style, available time, depth
+Required data      : Form fields above
+API dependency     : POST /learner-profile  (creates or updates)
+Loading            : Submit button shows spinner while saving
+Empty              : Sensible defaults pre-filled (Beginner / 20 min / English)
+Error              : Field-level validation (e.g., time must be a supported
+                      bucket: 5/20/60 min or 7-day plan)
+Success            : Profile saved, tied to this lesson session
+Navigation         : → Processing screen
+Persistence        : Written to DB immediately, not held only in frontend state
+On refresh         : Form re-fetches last saved profile for this lesson if
+                      one exists; does not silently reset to defaults
+On API failure     : "Couldn't save your preferences" + Retry; form values
+                      stay in local state so nothing typed is lost
+Back navigation    : Returns to Create Lesson; uploaded material/topic is
+                      preserved (not wiped)
+
+--- SCREEN: Processing / Content Understanding ---
+Purpose            : Show real progress of extraction/chunking/embedding
+                      (material path) or direct planning (topic path)
+User action        : Wait (or cancel)
+Required data      : Material ID or topic string + learner profile ID
+API dependency     : POST /content/analyze  → returns job_id
+                      GET /content/analyze/:job_id/status  (polled)
+Loading            : Real job-status polling — stages shown: Extracting →
+                      Chunking → Embedding → Indexing → Done. Each stage only
+                      advances when the backend actually reports it, not on a
+                      timer.
+Empty              : N/A
+Error              : Specific failure per stage (e.g., "couldn't extract text
+                      from this PDF — it may be scanned/image-only") with a
+                      recovery action (re-upload / switch to topic mode)
+Success            : Shows extracted key concepts/sections to the student —
+                      this is the "prove the AI understood your material"
+                      moment
+Navigation         : → Lesson Plan Generation (auto-continues) or shows
+                      "Generate Lesson" button
+Persistence        : Material status updated to "processed"; chunks + 
+                      embeddings stored
+On refresh         : Job status is re-polled from backend using persisted
+                      job_id — does not restart the job
+On API failure     : Timeout after a defined threshold → clear failure state
+                      + Retry (does not spin forever)
+Back navigation    : Warns that going back may discard this material's
+                      processing progress
+
+--- SCREEN: Lesson Plan Preview ---
+Purpose            : Let the student see/edit the generated lesson structure
+                      before starting
+User action        : Review concept sequence, reorder/skip, confirm
+Required data      : Generated LessonPlan object
+API dependency     : POST /lessons/generate  (from material/topic + profile)
+                      PATCH /lessons/:id  (if user edits the sequence)
+Loading            : Generation spinner while LLM call runs
+Empty              : N/A (always generates something, or shows explicit
+                      failure)
+Error              : "Couldn't generate a lesson plan" + Retry, with the
+                      option to simplify inputs (e.g., shorter material
+                      excerpt) if repeated failure
+Success            : Ordered list of concepts/segments with estimated time
+                      per segment, summing to the requested available time
+Navigation         : → Start AI Class
+Persistence        : LessonPlan persisted with status=draft until confirmed,
+                      then status=active
+On refresh         : Reloads the persisted draft plan, edits not lost if
+                      already saved via PATCH
+On API failure     : Retry; does not silently proceed with an empty plan
+Back navigation    : Returns to Learner Profile, keeps material/topic
+
+--- SCREEN: AI Class / Teaching Session (core loop) ---
+Purpose            : The actual lesson delivery + adaptive loop
+User action        : Watch/listen to explanation, answer questions when
+                      prompted, request "Explain Again" if needed
+Required data      : LessonSession state (see Section 6 data model)
+API dependency     : POST /session/:id/next-segment
+                      POST /session/:id/answer
+                      POST /session/:id/explain-again
+Loading            : Segment-level loading (generating explanation/visual/
+                      audio), with per-stage status if video generation is
+                      async (Section 7/8)
+Empty              : N/A
+Error              : If a specific concept's video generation fails, falls
+                      back to text+audio+visual for that segment ONLY, and
+                      logs it — the lesson does not stop
+Success            : Segment renders; question presented at the point defined
+                      by the lesson plan; answer submission updates session
+                      state and visibly changes what happens next (harder
+                      question OR re-teach)
+Navigation         : Loops internally; → Final Assessment once plan segments
+                      are exhausted
+Persistence        : Every segment transition, answer, evaluation, and
+                      misconception is written to DB as it happens — not
+                      batched at the end
+On refresh         : Session reloads from persisted state at the exact
+                      segment/question it was on — this is the single hardest
+                      and most important behavior to get right, and it's the
+                      main thing that separates a real app from a demo toy
+On API failure     : Segment-level retry; never traps the user on an infinite
+                      spinner (Section 12 rule)
+Back navigation    : Exits to Dashboard; session remains resumable
+
+--- SCREEN: Assessment ---
+Purpose            : Final quiz across the whole lesson
+User action        : Answer generated questions
+Required data      : LessonSession's concept-mastery map
+API dependency     : POST /session/:id/assessment/generate
+                      POST /session/:id/assessment/submit
+Loading            : Generation spinner, then per-question flow
+Empty              : N/A
+Error              : Retry on generation failure
+Success            : Score calculated server-side (not guessed client-side)
+Navigation         : → Learning Report
+Persistence        : Assessment + answers + score persisted
+On refresh         : Resumes at the question the student was on, answers so
+                      far not lost
+On API failure     : Retry; partial answers already submitted are preserved
+Back navigation    : Warns that leaving mid-assessment will save progress but
+                      mark it incomplete
+
+--- SCREEN: Learning Report ---
+Purpose            : Show outcome + recommendation
+User action        : View, optionally start recommended next topic
+Required data      : Score, strong/weak areas, recommendation
+API dependency     : GET /session/:id/report
+Loading            : Standard spinner
+Empty              : N/A
+Error              : Retry
+Success            : Full report rendered; profile updated in background
+Navigation         : → Dashboard, or → new lesson on recommended topic
+                      (pre-fills Create Lesson with that topic)
+Persistence        : Report persisted permanently against student profile
+On refresh         : Reloads the same persisted report, does not regenerate
+                      and potentially change the score
+On API failure     : Retry
+Back navigation    : Returns to teaching session in a "completed, read-only"
+                      view, not editable
+
+--- SCREEN: Learner Profile / History Dashboard ---
+Purpose            : Cross-lesson view — topics studied, strong/weak concepts,
+                      learning history, current path
+User action        : Browse history, jump into a recommended next lesson
+Required data      : Aggregated StudentProfile + LearningHistory
+API dependency     : GET /students/:id/profile
+Loading/Empty/Error/Success: standard patterns as above
+Navigation         : → Create Lesson (pre-filled) or → past Learning Report
+Persistence        : Read-mostly view over already-persisted data
+
+
+--------------------------------------------------------------------------------
+SECTION 5 — BUTTON / ACTION MAP
+--------------------------------------------------------------------------------
+"Upload Material"
+  → Opens file picker (accept: .pdf,.doc,.docx,.ppt,.pptx)
+  → POST /materials/upload (multipart, real progress events)
+  → State: Material row created, status=uploading→uploaded
+  → Success: moves to Learner Profile screen
+  → Failure: inline error, file rejected with a specific reason
+
+"Enter Topic" (text submit)
+  → No file; stores topic string in the in-progress lesson draft
+  → State: draft lesson gets topic field set
+  → Success: moves to Learner Profile screen
+  → Failure: N/A (client-side only until this point)
+
+"Save Profile / Continue"
+  → POST /learner-profile
+  → State: LearnerProfile persisted, linked to lesson draft
+  → Success: → Processing screen, triggers POST /content/analyze
+  → Failure: inline error, retry, values retained
+
+"Generate Lesson"
+  → POST /lessons/generate {material_id | topic, profile_id}
+  → State: LessonPlan created, status=draft
+  → Success: → Lesson Plan Preview
+  → Failure: retry; option to shorten/simplify input on repeated failure
+
+"Confirm Lesson / Start Class"
+  → PATCH /lessons/:id {status: active}
+  → POST /session/create {lesson_id}
+  → State: LessonSession created, status=in_progress, currentStep=0
+  → Success: → AI Class screen, first segment begins loading
+  → Failure: retry; lesson plan remains in draft, nothing lost
+
+"Continue" (inside teaching loop)
+  → POST /session/:id/next-segment
+  → State: currentLessonStep advances, currentConcept/currentExplanation/
+    currentVisual updated
+  → Success: next segment renders
+  → Failure: retry current segment only, not the whole session
+
+"Explain Again"
+  → POST /session/:id/explain-again {misconception context if available}
+  → State: currentExplanation replaced with an alternative-analogy version;
+    original explanation kept in history, not deleted
+  → Success: new explanation renders in place
+  → Failure: retry; falls back to a simpler templated re-explanation if the
+    LLM call fails twice, rather than leaving the student stuck
+
+"Submit Answer" (during question step)
+  → POST /session/:id/answer {question_id, response}
+  → Triggers Response Evaluator → Misconception Detector (if wrong) →
+    Adaptive Teacher decision
+  → State: studentResponse, evaluation, misconception (if any), adaptation
+    decision all written; currentLessonStep branches based on result
+  → Success: UI shows real feedback (not just right/wrong — the actual
+    misconception explanation when wrong), then either advances difficulty
+    or triggers re-teach
+  → Failure: retry; the student's typed answer is preserved, not lost
+
+"Take Assessment"
+  → POST /session/:id/assessment/generate
+  → State: Assessment created from the concept-mastery map of this session
+  → Success: → Assessment screen
+  → Failure: retry
+
+"Submit Assessment"
+  → POST /session/:id/assessment/submit {answers}
+  → State: score, strongAreas, weakAreas computed server-side
+  → Success: → Learning Report
+  → Failure: retry, partial answers preserved
+
+"Finish Lesson"
+  → GET /session/:id/report (generates if not cached) +
+    PATCH /students/:id/profile (append history, update weak/strong concepts)
+  → State: LearningReport persisted, StudentProfile updated,
+    recommendedNextTopic computed
+  → Success: → Learning Report screen with recommendation
+  → Failure: retry; session remains marked completed either way once
+    assessment was submitted (report generation is retryable separately)
+
+"Change Language" (mid-lesson)
+  → PATCH /session/:id {language}
+  → State: teaching language flag updated; NEXT generated segment uses new
+    language; already-delivered segments are NOT regenerated
+  → Success: lesson continues in new language without restarting
+  → Failure: retry; falls back to previous language if switch fails
+
+NO button in this map is decorative. Any screen not listed above with a
+button not listed here should be treated as out of scope until added to
+this document first.
+
+
+--------------------------------------------------------------------------------
+SECTION 6 — BACKEND / API / DATA FLOW
+--------------------------------------------------------------------------------
+6.1 CORE DATA MODEL (entities)
+--------------------------------------------------------------------------------
+StudentProfile      : id, name, learning_history[], strong_concepts[],
+                        weak_concepts[], current_path_id
+LearnerProfile       : id, student_id, level, existing_knowledge, objective,
+                        language, style, available_time, depth
+Material             : id, student_id, filename, type, status, storage_ref
+MaterialChunk        : id, material_id, text, embedding, section_ref
+Lesson               : id, student_id, source_type(material|topic),
+                        material_id?, topic?, profile_id, status
+LessonPlan           : id, lesson_id, segments[] (concept, target_time,
+                        visual_type, order)
+LessonSession        : id, lesson_id, status, current_step, language,
+                        started_at, completed_at
+SessionSegment       : id, session_id, concept, explanation_text,
+                        visual_spec, video_job_id?, audio_ref?, status
+Question             : id, session_id, segment_id, type, prompt, answer_key
+StudentResponse       : id, question_id, response_text, submitted_at
+Evaluation           : id, response_id, correct(bool), confidence, notes
+Misconception         : id, evaluation_id, description, root_cause
+Assessment           : id, session_id, questions[], answers[], score
+LearningReport        : id, session_id, score, strong_areas[], weak_areas[],
+                        recommended_revision, recommended_next_topic
+
+6.2 API ENDPOINTS (grouped)
+--------------------------------------------------------------------------------
+Materials      : POST /materials/upload
+                 GET  /materials/:id
+Content        : POST /content/analyze
+                 GET  /content/analyze/:job_id/status
+Profile        : POST /learner-profile
+                 GET  /students/:id/profile
+                 PATCH /students/:id/profile
+Lessons        : POST /lessons/generate
+                 PATCH /lessons/:id
+                 GET  /lessons/:id
+Sessions       : POST /session/create
+                 GET  /session/:id
+                 POST /session/:id/next-segment
+                 POST /session/:id/explain-again
+                 POST /session/:id/answer
+                 PATCH /session/:id            (e.g., language change)
+Assessment     : POST /session/:id/assessment/generate
+                 POST /session/:id/assessment/submit
+Report         : GET  /session/:id/report
+Video (async)  : POST /video/generate {segment_id}
+                 GET  /video/:job_id/status
+
+6.3 RAG DATA FLOW
+--------------------------------------------------------------------------------
+  UPLOAD → EXTRACT TEXT → CHUNK (semantic, ~500-800 tokens with overlap) →
+  EMBED (embedding model) → STORE (pgvector/Chroma) → on every teaching-agent
+  call for that material, RETRIEVE top-k relevant chunks → include them in the
+  Teaching Agent's context → GENERATE explanation grounded in those chunks.
+  The retrieved chunk references are stored alongside each SessionSegment so
+  the UI can show "this explanation is based on [Chapter X, page Y]" — this
+  directly satisfies the assessment's "show the user the lesson is based on
+  their material" expectation and reduces hallucination risk.
+
+6.4 VIDEO GENERATION DATA FLOW (async provider pattern)
+--------------------------------------------------------------------------------
+  REQUEST (POST /video/generate) → job created, status=queued →
+  PROCESSING (provider working) → JOB STATUS polled (GET /video/:job_id/status)
+  → GENERATED RESULT (video URL) → PLAYBACK.
+  If provider unavailable/unconfigured (FALLBACK mode): the same status flow
+  is used, but the "generated result" is [animated SVG avatar + Web Speech
+  API audio track + on-screen text/visual] assembled client-side. This keeps
+  the exact same screen/state contract in Section 4 regardless of which mode
+  is active, so swapping in a real provider later requires no UI change —
+  only swapping the provider implementation behind /video/generate.
+
+
+--------------------------------------------------------------------------------
+SECTION 7 — AI AGENT ARCHITECTURE
+--------------------------------------------------------------------------------
+An ORCHESTRATOR (the LessonSession state machine) coordinates the following
+agents. Each agent is a distinct, independently testable prompt/function —
+not one giant prompt trying to do everything, which is the #1 reason prior
+attempts produced shallow, half-wired output.
+
+ 1. CONTENT ANALYZER
+    In  : raw extracted text from material
+    Out : concept list, section map, key definitions/examples
+    Grounding: the raw text itself (no external knowledge needed)
+
+ 2. LESSON PLANNER
+    In  : concept list (or topic string) + LearnerProfile (level, time, depth)
+    Out : ordered LessonPlan segments with per-segment time budget and
+          suggested visual_type
+    Grounding: Content Analyzer output (material path) or general knowledge
+               (topic path)
+
+ 3. TEACHING AGENT
+    In  : current segment spec + LearnerProfile.level + language +
+          retrieved RAG chunks (material path)
+    Out : explanation_text tailored to level/language, cites source chunks
+          when material-based
+    Grounding: RAG chunks when available; otherwise flagged as
+               general-knowledge explanation in the UI
+
+ 4. VISUAL PLANNER
+    In  : concept + subject domain
+    Out : visual_type + visual_spec (e.g., "line graph, x=resistance,
+          y=current" for Physics; "code block + execution trace" for
+          Programming)
+    Grounding: subject-type rules table (Math/Physics/Biology/History/
+               Programming mapping, as specified in assessment Section 10)
+
+ 5. QUESTION GENERATOR
+    In  : segment's explanation_text + LearnerProfile.level
+    Out : question (type + prompt + answer key), decides WHEN to insert it
+          based on lesson plan pacing
+
+ 6. RESPONSE EVALUATOR
+    In  : question + answer_key + student's response_text
+    Out : correct(bool) + confidence + short evaluator notes
+    Note: this agent does NOT decide what happens next — it only judges
+
+ 7. MISCONCEPTION DETECTOR
+    In  : question + wrong response + evaluator notes
+    Out : specific misconception description + likely root cause (e.g.,
+          "student is confusing direct and inverse proportionality")
+    Note: only invoked when Response Evaluator returns incorrect
+
+ 8. ADAPTIVE TEACHER
+    In  : misconception (if any) + current difficulty + retry count
+    Out : decision (re-teach with new analogy / simplify / advance / branch
+          to a prerequisite concept) + the actual alternative explanation
+          when re-teaching
+    This is the agent that makes the student's answer visibly change what
+    happens next — the assessment's single highest-weighted requirement.
+
+ 9. ASSESSMENT ENGINE
+    In  : full session's concept-mastery map (which concepts were understood
+          on first try, which needed re-teaching, which were never mastered)
+    Out : final quiz questions weighted toward weak concepts, then computes
+          score + strong_areas + weak_areas from actual answers
+
+10. LEARNING PROFILE ENGINE
+    In  : LearningReport + prior StudentProfile
+    Out : updated strong/weak concept lists, updated learning_history,
+          recommended_next_topic (from a simple prerequisite/adjacency
+          mapping for known learning paths, e.g., the ML path example in the
+          assessment)
+
+ORCHESTRATOR (LessonSession state machine) — ties the above together:
+  next-segment  → Lesson Planner (already run) supplies segment → Teaching
+                  Agent → Visual Planner → Question Generator → renders
+  answer        → Response Evaluator → (if wrong) Misconception Detector →
+                  Adaptive Teacher → updates session state → next-segment or
+                  explain-again
+  assessment    → Assessment Engine
+  finish        → Learning Profile Engine
+
+
+--------------------------------------------------------------------------------
+SECTION 8 — IMPLEMENTATION PLAN
+--------------------------------------------------------------------------------
+8.1 Build order (milestones, not just a checklist — each milestone ends with
+a working, demoable slice, not a pile of half-connected code):
+
+  M1  Data model + backend skeleton (FastAPI + Postgres) + empty screens
+      wired to real (even if trivial) API calls — no AI yet. Goal: prove the
+      request/response/persistence plumbing works before any LLM is involved.
+
+  M2  Topic-based teaching, TEXT ONLY, single concept, no questions yet.
+      Goal: Lesson Planner + Teaching Agent working end-to-end, verified by
+      actually running it, not just reading the code.
+
+  M3  Add Question Generator + Response Evaluator + Misconception Detector +
+      Adaptive Teacher — the full adaptive loop, still text-only. This is the
+      single most important milestone: verify the "current increases" wrong-
+      answer scenario from the assessment actually changes the next step.
+
+  M4  Add material upload path: Content Analyzer + chunking + embeddings +
+      RAG retrieval feeding the Teaching Agent, with source references shown
+      in the UI.
+
+  M5  Add Assessment Engine + Learning Report + Learning Profile Engine +
+      basic recommendation. Full loop now works upload-or-topic → report.
+
+  M6  Add voice: Web Speech API integration (FALLBACK-labeled), provider
+      interface stubbed for ElevenLabs/Azure.
+
+  M7  Add avatar: simple animated SVG/2D avatar synced to audio timing
+      (FALLBACK-labeled), provider interface stubbed for
+      D-ID/HeyGen/Tavus, async job pattern implemented per Section 6.4 even
+      in fallback mode so swapping providers later is a config change, not a
+      rewrite.
+
+  M8  Multilingual: language param threaded through Teaching Agent + Question
+      Generator; verify mid-lesson language switch does not reset session
+      state (this is explicitly called out in the assessment and is easy to
+      break).
+
+  M9  Subject-aware visuals: implement the Visual Planner's domain rules for
+      at least 3 subject types with real rendering (charts/diagrams/code
+      blocks), not placeholder images.
+
+  M10 Error handling pass across every screen/button in Sections 4-5 —
+      specifically the refresh-mid-session and API-failure cases, since these
+      are the ones most often skipped.
+
+  M11 Documentation + demo video, following Section 2.7's exact checklist,
+      including an honest "known limitations" section covering fallback
+      voice/avatar mode.
+
+8.2 Where this gets built
+  - M1-M5 (the 65-point core) are buildable and fully testable in a normal
+    dev environment with a real database; this is the part worth protecting
+    from scope-cut under any circumstance.
+  - M6-M7 real provider integration (ElevenLabs/D-ID/HeyGen) requires paid
+    API keys and calling their APIs from wherever the app is actually hosted/
+    run — this needs to happen in your own dev environment, not inside a
+    chat sandbox with a restricted network allowlist.
+  - Recommendation given the timeline: treat M1-M5 as non-negotiable, M6-M9
+    as the differentiators to add in whatever time is left, M10-M11 as
+    mandatory regardless of how much of M6-M9 gets done — a rough-but-honest
+    app with clean docs beats a polished-looking app with broken error states.
+
+
+--------------------------------------------------------------------------------
+SECTION 9 — RISKS & DEPENDENCIES
+--------------------------------------------------------------------------------
+  - Third-party avatar/voice API cost & signup friction (HeyGen/D-ID/Tavus/
+    ElevenLabs typically need paid tiers or credit cards for decent quality;
+    budget time to set this up well before the deadline, not the night before.
+  - RAG grounding risk: poor chunking or missing citations = hallucinated
+    "teaching from your material" claims, which directly hurts the 15-point
+    RAG criterion. Always show source references in the UI.
+  - Mid-session refresh/resume is the single most commonly broken piece of
+    "adaptive" apps built quickly — budget explicit testing time for it
+    (Test Case 10 below).
+  - Scope-cut order if time runs short, aligned to Section 2.3's weightage:
+    cut Advanced/Optional features (Section 2.2) first, then avatar/voice
+    polish (keep fallback), never cut the adaptive loop (M3) or RAG (M4) —
+    those two carry 35 of the 100 points combined.
+  - Team/skill dependency: RAG + embeddings + async job orchestration is more
+    backend-heavy than typical hackathon web-app work; plan accordingly if
+    the team leans frontend-heavy.
+  - Judging risk: the assessment explicitly states a talking avatar reading a
+    generated script is NOT sufficient — a fallback avatar is fine only if
+    the underlying teaching/adaptation logic is genuinely real and
+    demonstrable live, not just narrated in the demo video.
+
+Appendix — TEST CASES TO RUN BEFORE CALLING ANYTHING "DONE" (from original
+brief, retained because they're the actual acceptance criteria):
+  1. Upload a PDF → full journey to report
+  2. Topic entry, no upload → full journey
+  3. Beginner learner profile
+  4. Advanced learner profile
+  5. Deliberately wrong answer → verify misconception path actually fires
+  6. Language switch mid-lesson → verify state is preserved
+  7. Short available time (5 min)
+  8. Long available time (60 min / 7-day plan)
+  9. Forced API failure (kill the backend mid-call) → verify recovery UI
+  10. Page refresh mid-lesson → verify session resumes at the same step
+
+Appendix — FINAL AUDIT MATRIX TEMPLATE (fill this in per requirement before
+declaring anything complete — a screen existing is not evidence):
+  REQUIREMENT | IMPLEMENTED? | WHERE (file/endpoint) | ACTUAL WORKING FLOW? |
+  TESTED? (which test case) | EVIDENCE (screen recording / log)
+
+================================================================================
+END OF PLAN — no code has been written. Next step is your call: start on M1,
+or hand this to Claude Code for the actual persistent multi-session build.
+================================================================================

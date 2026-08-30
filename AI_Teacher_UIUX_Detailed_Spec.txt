@@ -1,0 +1,473 @@
+================================================================================
+AI TEACHER — UI / UX / PAGE-BY-PAGE DETAILED SPECIFICATION
+Companion to AI_Teacher_Master_Plan.txt (Section 10 extension — no code here)
+================================================================================
+
+--------------------------------------------------------------------------------
+PART A — DESIGN SYSTEM FOUNDATIONS (applies to every page below)
+--------------------------------------------------------------------------------
+Component library : shadcn/ui + Tailwind (fast, accessible defaults, easy to
+                     theme without fighting the framework)
+Icons              : lucide-react (consistent stroke weight, huge coverage)
+Typography         : one serif or humanist display font for headings (teacher/
+                     classroom warmth, not a generic SaaS look), one clean
+                     sans for body/UI (Inter or similar). Max 2 font families.
+Type scale         : H1 32/40, H2 24/32, H3 20/28, Body 16/24, Small 14/20,
+                     Caption 12/16 (px/line-height) — desktop; scale down ~10%
+                     on mobile.
+Spacing            : 8px base unit (8/16/24/32/48/64) — no arbitrary spacing.
+Color usage        : one calm primary (used for primary CTAs + progress
+                     indicators only, not everywhere), one accent for
+                     "adaptive/AI thinking" moments (distinct from primary so
+                     the student visually knows "the AI is adapting right
+                     now"), neutral grays for structure, semantic colors only
+                     for status (success green / warning amber / error red) —
+                     never used decoratively.
+Motion             : short, purposeful only — 150-200ms ease for hover/press,
+                     250-300ms for panel transitions. No bouncy/playful
+                     animation on serious actions (assessment, report). Motion
+                     is used to show STATE CHANGE (e.g., a card visibly
+                     "settling" into place when adaptation happens), not for
+                     decoration.
+Tone of microcopy  : encouraging, plain, teacher-like — never robotic system
+                     language. "Let's see what you understood" not "Response
+                     evaluation complete." Errors are calm and specific, never
+                     alarmist.
+Loading convention : skeleton screens for data-shaped content (lists, cards);
+                     a labeled multi-stage progress indicator for anything
+                     that takes >3s and has real stages (upload processing,
+                     lesson generation, video generation) — never a bare
+                     spinner with no label for anything over 2 seconds.
+Error convention   : every error has (1) plain-language explanation, (2) a
+                     specific recovery action as a button, (3) never just
+                     "Something went wrong."
+Empty convention   : every empty state has a short friendly line + one clear
+                     CTA — never a blank page.
+Modal usage        : reserved for destructive/irreversible actions only
+                     (leaving mid-assessment, discarding an uploaded file).
+                     Never used for routine confirmations.
+Toast usage        : for background/non-blocking confirmations (profile
+                     saved, report generated) — auto-dismiss 4s, always also
+                     reachable via a persistent state so nothing important is
+                     "toast-only."
+
+--------------------------------------------------------------------------------
+PART B — GLOBAL NAVIGATION / LAYOUT SHELL
+--------------------------------------------------------------------------------
+Desktop (>1024px):
+  - Left sidebar (fixed, ~240px): logo/name top, nav items (Dashboard, New
+    Lesson, Learning History, Settings), collapsible to icon-only rail.
+  - Top bar (inside main content area, not full width): current lesson/page
+    title, language switcher pill (top right), profile avatar menu.
+  - Main content area: everything else described per-page below.
+
+Tablet (768-1024px):
+  - Sidebar collapses to icon-only rail by default, expandable on tap.
+  - Top bar retains language switcher + profile menu.
+
+Mobile (<768px):
+  - Sidebar becomes a bottom tab bar with 4 icons max: Home, New Lesson,
+    History, Settings — OR a hamburger drawer if more than 4 destinations
+    are needed. Prefer bottom tab bar for the primary 4, drawer for overflow.
+  - Top bar shrinks to just page title + a single overflow menu (⋮) that
+    holds language switcher + profile.
+  - Any two-column layout on desktop (e.g., Teaching Session's video+visual
+    split) stacks vertically on mobile — video/avatar area on top, visual
+    demonstration below it, question/input pinned near the bottom of the
+    viewport so it's always reachable without scrolling past content.
+
+Persistent global elements:
+  - Toast container: bottom-center on mobile, bottom-right on desktop.
+  - Network-status indicator: a small unobtrusive banner appears only when
+    connectivity is actually lost ("You're offline — changes will be saved
+    when you're back"), never shown when everything is fine.
+
+--------------------------------------------------------------------------------
+PART C — PAGE-BY-PAGE DETAIL
+--------------------------------------------------------------------------------
+
+════════════════════════════════════════════
+PAGE 1 — LANDING / DASHBOARD
+Route: /
+════════════════════════════════════════════
+Purpose: entry point — resume or start a lesson, see progress at a glance.
+
+Layout (top to bottom):
+  1. Greeting header: "Welcome back, {name}" + one-line summary
+     ("You've completed 3 lessons, 2 concepts need revision") — this line is
+     generated from real profile data, not decorative.
+  2. Primary CTA card, full width, visually dominant: "Start a new lesson" —
+     large button, opens Create Lesson page. This is the single most
+     important element on the page and should not compete visually with
+     anything else.
+  3. "Continue where you left off" row (only rendered if an in-progress
+     session exists) — a horizontal card showing: topic/material name,
+     progress bar (e.g., "4 of 7 concepts"), "Resume" button.
+  4. "Recent lessons" grid — cards showing: title, date, score badge (if
+     completed) or "In progress" badge, thumbnail-style subject icon (not a
+     generated image — a simple icon mapped to subject domain).
+  5. "Recommended next" strip (only if a report has produced a
+     recommendation) — single card: "Based on your last lesson, revise
+     Ohm's Law" + "Start" button.
+
+Empty state (brand-new student, no lessons yet): steps 3-5 are replaced with
+one centered illustration-free message: "No lessons yet — start your first
+one" + the same primary CTA, slightly enlarged and centered.
+
+Loading state: header renders immediately (static), cards 3-5 show skeleton
+rectangles (3 skeleton cards) while GET /lessons resolves.
+
+Error state: cards 3-5 area shows a single inline error card: "Couldn't load
+your lesson history" + Retry button. Primary CTA (start new lesson) remains
+fully usable regardless — a failure to load history should never block
+starting something new.
+
+Responsive: grid in step 4 is 3-column desktop, 2-column tablet, 1-column
+mobile (cards stack, full width).
+
+════════════════════════════════════════════
+PAGE 2 — CREATE LESSON
+Route: /lessons/new
+════════════════════════════════════════════
+Purpose: choose Upload Material vs Enter Topic.
+
+Layout:
+  1. Page title: "What do you want to learn today?"
+  2. Two large, equal-weight selector cards side by side (desktop) / stacked
+     (mobile):
+       Card A — "Upload material" (icon: file/upload) — subtext: "PDF, Word,
+       PowerPoint, or your notes"
+       Card B — "Enter a topic" (icon: lightbulb) — subtext: "Just tell me
+       what you want to learn"
+  3. Selecting a card expands an inline panel below it (not a new route) —
+     keeps context, avoids an extra navigation hop:
+     - Card A expanded: drag-and-drop file zone + "Browse files" button +
+       accepted formats listed in small caption text + file size limit shown
+       upfront (not discovered only on rejection).
+     - Card B expanded: single-line text input, placeholder: "e.g. Newton's
+       Laws of Motion, or React for interviews" + a few tappable example
+       chips below it for inspiration (fills the input, doesn't submit).
+  4. "Continue" button, disabled until a valid file or non-empty topic is
+     present — button is visibly disabled (not just non-functional) so the
+     user knows why they can't proceed.
+
+Upload sub-states (Card A):
+  - Drag-over: dashed border highlights, background tint changes subtly.
+  - File selected, before upload starts: filename + size shown with an "✕"
+    to remove/replace.
+  - Uploading: real progress bar with % text, filename stays visible.
+  - Upload error: filename row turns to an inline error line directly under
+    it — "This file type isn't supported yet" or "File is too large (max
+    25MB)" — with a "Choose a different file" action, not a modal.
+
+Responsive: cards stack full-width on mobile; expanded panel appears
+directly below the selected card, pushing the other card down (not
+overlapping).
+
+════════════════════════════════════════════
+PAGE 3 — LEARNER PROFILE FORM
+Route: /lessons/new/profile
+════════════════════════════════════════════
+Purpose: capture personalization inputs.
+
+Layout: single column, max-width ~560px, centered — this is a form, not a
+dashboard, so it should feel focused/narrow even on wide screens.
+  1. Small breadcrumb/step indicator at top: "Step 2 of 3 — Tell me about
+     you" (reinforces this is a short flow, not an open-ended form).
+  2. Fields, in this order (order matters — easiest/most natural first):
+     - Level: 3 large tappable chips (Beginner / Intermediate / Advanced) —
+       not a dropdown, this is a low-friction, high-frequency choice.
+     - Available time: chips (5 min / 20 min / 60 min / 7-day plan) —
+       selecting "7-day plan" reveals a small inline note: "I'll build you a
+       revision schedule instead of a single lesson."
+     - Preferred language: searchable dropdown, defaults to the student's
+       last-used language if known, otherwise device locale.
+     - Existing knowledge (optional, collapsed by default under "Tell me
+       more" disclosure): free-text, 1-2 lines, placeholder "e.g. I know
+       basic algebra but not calculus."
+     - Teaching style (optional, same disclosure): chips — Simple &
+       example-heavy / Technical & precise / Story-driven.
+  3. "Start my lesson" primary button at the bottom, full width on mobile.
+
+Validation: no field is a hard blocker except Level and Available time
+(everything else has a sensible default) — minimizes friction before the
+"aha" moment of seeing the AI actually teach something.
+
+Error state: inline, per-field, appears only after the user attempts
+Continue — never validates aggressively while still typing.
+
+════════════════════════════════════════════
+PAGE 4 — PROCESSING / CONTENT UNDERSTANDING
+Route: /lessons/:id/processing
+════════════════════════════════════════════
+Purpose: show real progress, and for the upload path, prove the AI actually
+understood the material.
+
+Layout:
+  1. Centered vertical stack (this page has no sidebar distraction — full
+     focus on the progress).
+  2. A stepped progress indicator with 3-4 labeled stages relevant to the
+     path taken:
+     Material path : Reading your file → Finding key concepts → Understanding
+                     structure → Ready
+     Topic path    : Understanding your topic → Structuring the lesson →
+                     Ready
+     Each stage's label is filled/active only when the backend has actually
+     reported that stage — never advances on a timer.
+  3. Once complete (material path only): a "Here's what I found" card
+     appears below the progress indicator — a short bulleted list of
+     detected chapters/sections/key concepts. This is shown BEFORE moving to
+     the lesson plan, deliberately, so the student sees proof of
+     understanding as a distinct moment.
+  4. "Continue to lesson plan" button appears only once processing is done.
+
+Error state: the stage that failed is marked with an inline error icon +
+one-line reason directly next to that stage (not a separate error page) +
+two recovery buttons: "Try again" and, for material-path failures
+specifically, "Switch to topic instead" (graceful degradation rather than a
+dead end).
+
+════════════════════════════════════════════
+PAGE 5 — LESSON PLAN PREVIEW
+Route: /lessons/:id/plan
+════════════════════════════════════════════
+Purpose: show + allow light editing of the generated structure before
+committing.
+
+Layout:
+  1. Title: the lesson's topic/material name, editable inline (pencil icon).
+  2. Vertical timeline list of segments — each row shows: order number,
+     concept name, estimated time, a small icon for the planned visual type
+     (graph/diagram/code/etc.), and a drag handle for reordering.
+  3. Each row has a "Skip" toggle (student can deprioritize a concept they
+     already know) — toggled-off rows visually dim and move to a collapsed
+     "Skipped" section at the bottom, not deleted.
+  4. A running total at the top-right of the list: "Total: 18 of 20 min
+     requested" — updates live as rows are toggled/reordered, so the student
+     sees the time budget respected in real time.
+  5. "Looks good, start the class" primary button at the bottom.
+
+Empty/degenerate case: if generation produced only 1 segment (e.g., a very
+narrow topic), the timeline still renders normally — no special-casing
+needed, but the "Total" line makes it obvious this is intentional, not
+broken.
+
+════════════════════════════════════════════
+PAGE 6 — AI CLASS / TEACHING SESSION (the core screen — most detail)
+Route: /sessions/:id
+════════════════════════════════════════════
+Purpose: the actual lesson delivery + adaptive loop. This screen has the
+most states of any page in the product.
+
+Layout (desktop, two-column):
+  LEFT column (~40% width) — "Teacher" panel:
+    - Avatar/video area, fixed aspect ratio (16:9 or portrait depending on
+      avatar style), rounded corners.
+    - Below it: playback controls — play/pause, a subtle speed control
+      (0.75x/1x/1.25x), mute toggle, and captions toggle (on-screen text of
+      what's being spoken — always available, not just an accessibility
+      afterthought since multilingual + noisy environments make this
+      genuinely useful).
+    - Below controls: a small "Based on: Chapter 4, page 12" reference chip
+      — ONLY shown when the current segment is grounded in uploaded
+      material (RAG). Absent entirely for topic-based/general-knowledge
+      segments — this distinction should be visually obvious, not hidden in
+      fine print.
+
+  RIGHT column (~60% width) — "Whiteboard" panel:
+    - Visual demonstration area — renders whatever the Visual Planner chose:
+      a graph, a labeled diagram, a code block with output, a timeline,
+      etc. This area is the visual focus of the screen; the avatar panel is
+      intentionally smaller than most competitors' avatar-first designs,
+      because the assessment explicitly penalizes "avatar reading text"
+      designs — the whiteboard is where the actual teaching content lives.
+    - Below the whiteboard: the question/interaction card appears here when
+      the lesson plan calls for it (see Question sub-states below) — it
+      replaces the whiteboard's idle state, doesn't overlay/obscure it.
+
+  TOP bar (spans both columns): lesson progress bar (segments completed /
+  total), elapsed time vs. available time budget, language switcher pill,
+  "Exit lesson" (ghost button, top-right — triggers confirm modal only if
+  mid-question or mid-assessment, otherwise exits immediately since progress
+  is already persisted).
+
+Idle/Explaining sub-state:
+  - Avatar speaks (or fallback: avatar animates lightly + captions scroll +
+    audio plays), whiteboard shows the current visual, "Continue" button
+    appears once the explanation finishes (or immediately if captions-only
+    mode).
+
+Question sub-state:
+  - Question card slides up into the whiteboard's lower area (not a modal —
+    staying in-flow matters here).
+  - Question type determines input widget:
+      MCQ            → 2-4 large tappable option buttons, no radio buttons
+      Short-answer   → single-line text input + Submit
+      Problem-solving→ multi-line text area + Submit
+      "Explain in your own words" → multi-line text area, slightly taller,
+        placeholder: "Explain it like you're teaching a friend"
+  - "I'm not sure" is always available as a subtle secondary link below the
+    input — routes directly into the re-teach path rather than forcing a
+    wrong guess, which gives the Adaptive Teacher a cleaner signal.
+
+Evaluating sub-state (brief, real):
+  - Submit button shows a short inline spinner (label: "Checking your
+    answer..."), input disabled — this should generally be fast (<2-3s); if
+    it's not, the same multi-stage-progress convention from Part A applies
+    rather than a bare spinner sitting for a long time.
+
+Feedback sub-state — CORRECT:
+  - A calm, confirming inline banner above the whiteboard: a short specific
+    affirmation (not just "Correct!") — e.g., "Right — voltage stays fixed
+    so current has to drop." Uses the accent color from Part A briefly, then
+    settles back to neutral. "Continue" button appears, difficulty may
+    increase silently (no need to announce "difficulty increased" — that's
+    an implementation detail, not something to expose in copy).
+
+Feedback sub-state — INCORRECT (the highest-value screen in the whole app):
+  - The banner is NOT a red "✗ Incorrect" stamp. It reframes: "Let's look at
+    this differently" (or similar calm phrasing) followed immediately by the
+    Misconception Detector's explanation of the actual misunderstanding, in
+    plain language.
+  - Below that, a "New way to think about it" card appears with the
+    alternative analogy/example from the Adaptive Teacher — visually
+    distinct (accent-colored left border) so it reads as "here's something
+    new," not a repeat of the same explanation.
+  - A new question follows automatically (same question sub-state pattern),
+    with a small progress dot indicator (e.g., 3 dots) showing this is
+    attempt 2 of a bounded retry sequence — so the student can see there's a
+    limit, it won't loop forever.
+  - If the retry limit is hit without mastery: a non-judgmental transition
+    message — "We'll come back to this — let's keep moving" — and the
+    concept is silently flagged for the final report's weak-areas list.
+
+"Explain Again" affordance: a persistent, low-emphasis text link ("Not
+clear? Explain again") available during any Explaining/Idle sub-state, not
+just after a wrong answer — a student can proactively ask for it.
+
+Video generation (async, real provider mode) sub-state: whiteboard/avatar
+area shows a labeled progress state ("Preparing your lesson video...") with
+the same multi-stage pattern; if generation fails for this specific segment,
+it degrades to captions+audio+whiteboard only for that one segment — the
+lesson does not stop, and this degradation is not announced with alarming
+language, just quietly falls back.
+
+Mid-lesson language switch: switcher pill opens a small dropdown, selecting
+a language shows a brief inline toast ("Switching to Hindi from the next
+part") — current segment finishes in the original language, the NEXT
+segment renders in the new one. No page reload, no progress bar reset.
+
+Responsive (mobile): the two-column layout stacks — avatar/video panel on
+top (shorter, ~40% viewport height), whiteboard below it, question card
+still slides up from the bottom but now takes near-full width. Playback
+controls collapse into a single row of icon buttons to save vertical space.
+
+════════════════════════════════════════════
+PAGE 7 — ASSESSMENT
+Route: /sessions/:id/assessment
+════════════════════════════════════════════
+Purpose: final quiz across the lesson.
+
+Layout: intentionally simpler/calmer than the teaching screen — no
+avatar/video here, this is exam-mode.
+  1. Header: "Final check — {N} questions" + a plain progress bar (question
+     3 of 8), no time pressure countdown unless the student's chosen mode
+     implies one (not required by the assessment doc, so default: untimed).
+  2. One question at a time, centered, generous whitespace — same input
+     widgets per question type as the teaching screen's question card, for
+     consistency.
+  3. "Next" button per question; a "Review before submitting" summary screen
+     after the last question shows all answers with an "Edit" link per
+     question before final submit — prevents accidental premature
+     submission on a high-stakes screen.
+  4. Final "Submit assessment" button — requires the review step to have
+     been seen at least once (not a hard confirm modal, just ensures the
+     summary was shown).
+
+Loading (question generation): full-page centered spinner with label
+("Preparing your final check...") — short screen, no need for multi-stage
+here since it's a single LLM call.
+
+Error: if generation fails, a simple retry — this screen has no partial
+state to preserve since nothing has been answered yet.
+
+Mid-assessment exit: confirm modal — "Your answers so far will be saved,
+but this attempt will be marked incomplete. Leave anyway?" with Cancel /
+Leave buttons.
+
+════════════════════════════════════════════
+PAGE 8 — LEARNING REPORT
+Route: /sessions/:id/report
+════════════════════════════════════════════
+Purpose: outcome + recommendation — the "payoff" screen.
+
+Layout:
+  1. Score, large and centered at top, with a short qualitative line under
+     it ("Solid understanding, a couple of gaps to close") rather than a
+     bare number alone.
+  2. Two-column (desktop) / stacked (mobile) card pair: "Strong areas"
+     (checkmarks, calm green accent) and "Needs improvement" (a distinct
+     but non-alarming accent, not red/error red — this is coaching, not
+     failure).
+  3. "Recommended next step" card, most visually prominent after the score —
+     one clear recommendation with a "Start this" button that pre-fills
+     Create Lesson with that topic.
+  4. Collapsible "Full breakdown" section below the fold — per-question
+     results from the assessment, for students who want the detail without
+     it cluttering the primary view.
+  5. Secondary actions row at the bottom: "Back to dashboard", "Retake
+     assessment" (only shown if score is below a mastery threshold).
+
+════════════════════════════════════════════
+PAGE 9 — LEARNING HISTORY / PROFILE
+Route: /profile
+════════════════════════════════════════════
+Purpose: cross-lesson view.
+
+Layout:
+  1. Summary header: total lessons completed, overall strong/weak concept
+     counts as small stat chips.
+  2. A simple concept-mastery grid or list — concepts grouped by subject,
+     each tagged Strong/Developing/Weak with the accent colors established
+     on the Report page (visual consistency between these two screens
+     matters — same color = same meaning everywhere in the app).
+  3. Chronological list of past lessons (reuses the same card component as
+     Dashboard's "Recent lessons," not a new design).
+  4. "Current learning path" card if one is active — shows the ordered path
+     (like the Machine Learning example in the assessment doc) with
+     completed steps checked off and the next step highlighted + a "Continue
+     path" button.
+
+════════════════════════════════════════════
+PAGE 10 — SETTINGS
+Route: /settings
+════════════════════════════════════════════
+Purpose: minimal — default language, name, data/privacy basics.
+Layout: single-column form, same narrow-centered pattern as the Learner
+Profile page for visual consistency between "profile-shaped" screens.
+Fields: Display name, Default teaching language, Default level, "Delete my
+data" (destructive, requires the confirm-modal pattern from Part A, with the
+consequence spelled out in plain language before the button, not just in a
+tooltip).
+
+--------------------------------------------------------------------------------
+PART D — GLOBAL ERROR / EMPTY / EDGE PATTERNS (cross-reference for every page)
+--------------------------------------------------------------------------------
+- Network offline banner: appears top of viewport, non-blocking, auto-hides
+  on reconnect with a brief "Back online" confirmation.
+- 404 / invalid session id: friendly page, not a raw error — "This lesson
+  doesn't exist or has been removed" + button back to Dashboard.
+- Session expired mid-action (e.g., auth token stale): action is retried
+  silently after a transparent re-auth if possible; only shown to the user
+  if that fails, with a clear "Please sign in again" state that preserves
+  the return path so they land back where they were, not on the Dashboard.
+- Every destructive action anywhere in the app uses the same confirm-modal
+  copy pattern: [what will happen] + [Cancel] + [confirm, labeled with the
+  actual action, never just "OK"] — e.g., "Leave anyway" not "Confirm."
+
+================================================================================
+END OF UI/UX SPEC. This defines what every screen looks like and does at a
+component level, without writing any implementation code. Section 4/5 of the
+master plan define the functional contract (APIs, state); this document
+defines the visual/interaction contract for the same screens.
+================================================================================

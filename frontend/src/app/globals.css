@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+:root {
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* Bharat Academix Design Tokens */
+  --surface: #f8f9ff;
+  --surface-dim: #cbdbf5;
+  --surface-bright: #f8f9ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eff4ff;
+  --surface-container: #e5eeff;
+  --surface-container-high: #dce9ff;
+  --surface-container-highest: #d3e4fe;
+  
+  --on-surface: #0b1c30;
+  --on-surface-variant: #45464d;
+  --outline: #76777d;
+  --outline-variant: #e2e8f0;
+
+  --primary: #0f172a;
+  --on-primary: #ffffff;
+  --primary-container: #1e293b;
+
+  --secondary: #10b981;
+  --on-secondary: #ffffff;
+  --secondary-container: #ecfdf5;
+  --on-secondary-container: #006c49;
+
+  --tertiary: #f59e0b;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #fef3c7;
+  --on-tertiary-container: #92400e;
+
+  --background: #f8fafc;
+  --foreground: #0b1c30;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #0b1c30;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading), system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Tactile Elevation Shadows */
+.card-elevation-1 {
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.05), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.card-elevation-2 {
+  background-color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 4px 6px -4px rgb(15 23 42 / 0.05);
+  border: 1px solid #cbd5e1;
+}
+
+/* Learning Cards with accent left borders */
+.learning-card-completed {
+  background-color: #ffffff;
+  border-left: 6px solid #10b981;
+  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.05);
+}
+
+.learning-card-active {
+  background-color: #ffffff;
+  border-left: 6px solid #f59e0b;
+  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.05);
+}
+
+/* Tactile Pressable Button */
+.btn-tactile {
+  transition: all 0.15s ease-in-out;
+}
+.btn-tactile:active {
+  transform: translateY(1px);
+}

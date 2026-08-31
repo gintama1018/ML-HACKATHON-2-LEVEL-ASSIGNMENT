@@ -99,7 +99,8 @@ class LessonSegmentPlan(BaseModel):
     skipped: bool = False
 
 class LessonPlanUpdateRequest(BaseModel):
-    segments: List[LessonSegmentPlan]
+    segments: Optional[List[Dict[str, Any]]] = None
+    status: Optional[str] = None
 
 LessonPlanUpdate = LessonPlanUpdateRequest
 
@@ -282,3 +283,41 @@ class VideoJobStatusResponse(BaseModel):
     scenes: Optional[List[Dict[str, Any]]] = []
     captions: Optional[List[Dict[str, Any]]] = None
     mode: str = "ai_video_engine"
+
+# --- Learning Path Schemas (REQ-67/68) ---
+class LearningPathModuleResponse(BaseModel):
+    id: str
+    path_id: str
+    module_order: int
+    title: str
+    description: Optional[str] = None
+    key_concepts: List[str] = []
+    is_unlocked: bool = False
+    is_completed: bool = False
+    score: Optional[float] = None
+    completed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class LearningPathResponse(BaseModel):
+    id: str
+    student_id: str
+    topic: str
+    target_level: str
+    total_modules: int
+    current_module_index: int
+    status: str
+    created_at: datetime
+    modules: List[LearningPathModuleResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class LearningPathGenerateRequest(BaseModel):
+    student_id: Optional[str] = None
+    topic: str
+    target_level: str = "Beginner"
+    total_modules: int = 5
+
+class LearningPathModuleUpdateRequest(BaseModel):
+    is_completed: Optional[bool] = None
+    score: Optional[float] = None

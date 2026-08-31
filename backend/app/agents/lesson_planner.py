@@ -5,18 +5,20 @@ from app.models import LearnerProfile
 SYSTEM_PROMPT = """You are the Lesson Planner Agent of the Bharat Academix AI Teacher platform.
 Your responsibility is to design a pedagogically optimal, structured curriculum timeline tailored precisely to the learner's profile, requested time budget, depth, and learning style.
 
-You must choose the appropriate visual_type for each segment from:
+Visual Type Selection & Explainability:
 - 'chart': for Physics/Economics/Data relationships (coordinate plots, circuit loads, curves)
-- 'math': for Mathematical equations, step-by-step proofs, formulas
+- 'math': for Mathematical equations, step-by-step derivations, formal proofs
 - 'code': for Computer Science / Programming concepts (code blocks with syntax & output)
-- 'diagram': for Biology / Physics physical layouts / Anatomy / Mechanical systems
-- 'timeline': for History / Evolution / Sequential processes
+- 'biology': for Cell structures, biological systems, anatomical diagrams
+- 'chemistry': for Reaction pathways, molecular structures, energy profiles
+- 'diagram': for Physical layouts, force systems, mechanical machines
+- 'timeline': for History, evolution, sequential chronological events
 
-Budget the time strictly:
-- '5 min': 2 focused, high-yield segments
-- '20 min': 3-4 balanced conceptual and application segments
-- '60 min': 5-7 deep-dive segments covering nuances, edge cases, and proofs
-- '7-day plan': 7 daily progression modules
+Time Budgeting & Pacing Rules:
+- '5 min': 2 high-yield, focused segments
+- '20 min': 3-4 balanced conceptual, mechanical, and application segments
+- '60 min': 5-7 deep-dive segments covering edge cases, formal proofs, and nuances
+- '7-day plan': 7 daily progression and spaced-revision modules (Day 1: Foundations, Day 2: Mechanics + Day 1 review, Day 3: Application, Day 4: Mid-Week Spaced Revision, Day 5: Advanced Nuance, Day 6: Synthesis, Day 7: Comprehensive Capstone Exam)
 
 You MUST return valid JSON matching this schema:
 {
@@ -26,9 +28,12 @@ You MUST return valid JSON matching this schema:
   "segments": [
     {
       "order": integer,
+      "day_number": integer (1-7 if 7-day plan, else 1),
+      "is_revision_day": boolean,
       "concept": string,
       "target_time": string,
-      "visual_type": "chart" | "math" | "code" | "diagram" | "timeline",
+      "visual_type": "chart" | "math" | "code" | "biology" | "chemistry" | "diagram" | "timeline",
+      "visual_rationale": string (1-sentence explainability for why this visual was chosen),
       "learning_objective": string,
       "skipped": false
     }
@@ -40,7 +45,7 @@ def plan_lesson(
     concepts: Optional[List[str]],
     profile: LearnerProfile
 ) -> Dict[str, Any]:
-    """Generates an ordered lesson plan using Claude Sonnet"""
+    """Generates an ordered lesson plan with visual explainability and spaced-pacing using Claude Sonnet"""
     user_prompt = f"""Design an optimal lesson plan for:
 Topic / Subject: {topic or 'Extracted Document Concepts'}
 Extracted Concepts (if any): {', '.join(concepts) if concepts else 'None provided'}
@@ -54,7 +59,7 @@ Learner Profile:
 - Existing Knowledge: {profile.existing_knowledge or 'None stated'}
 - Learning Objective: {profile.objective or 'Comprehensive mastery'}
 
-Create the structured lesson segments."""
+Create the structured lesson segments with visual explainability rationale."""
 
     result = claude_service.call_json(
         system_prompt=SYSTEM_PROMPT,

@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import engine, Base
 from app.routers import (
-    profile, materials, content, lessons, sessions, assessment, report, video
+    profile, materials, content, lessons, sessions, assessment, report, video, learning_paths
 )
 
 # Ensure static directories exist
@@ -44,6 +44,7 @@ app.include_router(sessions.router)
 app.include_router(assessment.router)
 app.include_router(report.router)
 app.include_router(video.router)
+app.include_router(learning_paths.router)
 
 @app.get("/health")
 def health_check():

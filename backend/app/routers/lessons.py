@@ -30,12 +30,18 @@ def get_lesson(lesson_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Lesson not found")
     return lesson
 
+@router.patch("/lessons/{lesson_id}", response_model=LessonResponse)
 @router.put("/lessons/{lesson_id}/plan", response_model=LessonResponse)
 def update_lesson_plan(lesson_id: str, payload: LessonPlanUpdate, db: Session = Depends(get_db)):
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
         
+    if payload.status:
+        lesson.status = payload.status
+        if lesson.plan:
+            lesson.plan.status = payload.status
+
     if lesson.plan and payload.segments is not None:
         lesson.plan.segments = [seg.model_dump() if hasattr(seg, "model_dump") else dict(seg) for seg in payload.segments]
             
@@ -112,14 +118,14 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
             }
         ]
 
-    # Create Lesson entity
+    # Create Lesson entity with draft status for review
     lesson = Lesson(
         student_id=student_id,
         source_type=payload.source_type,
         material_id=payload.material_id,
         topic=payload.topic,
         profile_id=profile.id,
-        status="active"
+        status="draft"
     )
     db.add(lesson)
     db.commit()
@@ -130,7 +136,7 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
         lesson_id=lesson.id,
         segments=segments,
         total_estimated_minutes=total_time,
-        status="active"
+        status="draft"
     )
     db.add(lesson_plan)
     db.commit()

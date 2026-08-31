@@ -1,10 +1,14 @@
 import os
 import math
 import tempfile
+import subprocess
+import logging
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import imageio_ffmpeg
 from gtts import gTTS
+
+logger = logging.getLogger(__name__)
 
 class VideoGeneratorService:
     def __init__(self, output_dir: str = "./static/videos"):
@@ -16,7 +20,6 @@ class VideoGeneratorService:
 
     def _get_font(self, size: int = 18, bold: bool = False):
         try:
-            # Try standard Windows / Linux fonts
             font_names = ["arialbd.ttf" if bold else "arial.ttf", "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf", "calibri.ttf"]
             for fn in font_names:
                 try:
@@ -28,12 +31,22 @@ class VideoGeneratorService:
             return ImageFont.load_default()
 
     def generate_audio(self, text: str, language: str, output_path: str) -> float:
-        """Generate real TTS audio file and return duration in seconds."""
+        """
+        Multi-tier resilient audio generation:
+        Tier 1: Cloud gTTS with retry
+        Tier 2: Local pyttsx3 speech engine (if speech system is available)
+        Tier 3: Valid emergency MP3 synthesis via libmp3lame
+        Guarantees that video rendering receives a valid, readable audio stream.
+        """
         clean_text = text.replace("*", "").replace("#", "").replace("`", "").strip()
         if not clean_text:
             clean_text = "Let us explore this fundamental educational concept together."
 
-        # Map language to gTTS parameters
+        # Estimate expected duration (~130 words per minute)
+        words_count = len(clean_text.split())
+        estimated_duration = max(3.5, round((words_count / 130.0) * 60.0, 2))
+
+        # Map language codes
         lang_code = "en"
         tld = "co.in"
         if "hindi" in language.lower() or language.lower() == "hi":
@@ -43,24 +56,56 @@ class VideoGeneratorService:
             lang_code = "en"
             tld = "co.in"
 
+        audio_generated = False
+
+        # Tier 1: gTTS Cloud Synthesis
         try:
             tts = gTTS(text=clean_text[:400], lang=lang_code, tld=tld, slow=False)
             tts.save(output_path)
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                audio_generated = True
         except Exception as e:
-            print(f"gTTS error: {e}, using fallback audio generator")
-            # Create a short silent/tone audio file via ffmpeg as fallback
-            cmd = f'ffmpeg -y -f lavfi -i "sine=frequency=440:duration=4" -c:a aac "{output_path}"'
-            os.system(cmd)
+            logger.warning(f"Tier 1 (gTTS) unavailable: {e}. Attempting local engine.")
 
-        # Determine audio duration via imageio_ffmpeg
+        # Tier 2: Local Engine Fallback (pyttsx3)
+        if not audio_generated:
+            try:
+                import pyttsx3
+                engine = pyttsx3.init()
+                temp_wav = output_path.replace(".mp3", ".wav")
+                engine.save_to_file(clean_text, temp_wav)
+                engine.runAndWait()
+                if os.path.exists(temp_wav) and os.path.getsize(temp_wav) > 1000:
+                    # Convert WAV to standard MP3 with libmp3lame
+                    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+                    subprocess.run([
+                        ffmpeg_exe, "-y", "-i", temp_wav,
+                        "-c:a", "libmp3lame", "-b:a", "128k", output_path
+                    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    if os.path.exists(output_path) and os.path.getsize(output_path) > 500:
+                        audio_generated = True
+                    try:
+                        os.remove(temp_wav)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"Tier 2 (pyttsx3) unavailable: {e}. Engaging Tier 3 valid audio synthesis.")
+
+        # Tier 3: Valid Audio Fallback (libmp3lame sine/silence container)
+        if not audio_generated:
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            subprocess.run([
+                ffmpeg_exe, "-y", "-f", "lavfi",
+                "-i", f"sine=frequency=440:duration={estimated_duration}",
+                "-c:a", "libmp3lame", "-b:a", "128k", "-ar", "24000", "-ac", "1",
+                output_path
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Accurately probe duration using FFmpeg
         try:
-            duration = 4.0
-            meta = imageio_ffmpeg.read_frames(output_path)
-            meta_gen = meta.__iter__()
-            # Read first header info
-            probe = imageio_ffmpeg.get_ffmpeg_exe()
-            import subprocess
-            res = subprocess.run([probe, "-i", output_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            res = subprocess.run([ffmpeg_exe, "-i", output_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            duration = estimated_duration
             for line in res.stderr.splitlines():
                 if "Duration:" in line:
                     time_str = line.split("Duration:")[1].split(",")[0].strip()
@@ -69,30 +114,27 @@ class VideoGeneratorService:
                     break
             return max(3.0, duration)
         except Exception:
-            # Estimate roughly ~130 words per min
-            words = len(clean_text.split())
-            return max(3.5, (words / 130.0) * 60.0)
+            return estimated_duration
 
     def _draw_avatar(self, draw: ImageDraw.ImageDraw, is_speaking: bool, frame_idx: int):
-        """Draw animated teacher avatar with suit, glasses, and mouth sync."""
+        """Draw animated teacher avatar with suit, glasses, and lip-sync mouth motion."""
         cx, cy = 230, 310
         # Background avatar card
         draw.rounded_rectangle([40, 100, 420, 580], radius=16, fill=(15, 23, 42), outline=(51, 65, 85), width=2)
         
         # Avatar status badge
-        status_text = "• AI TEACHER (SPEAKING)" if is_speaking else "• AI TEACHER (LISTENING)"
+        status_text = "• AI TEACHER (EXPLAINING)" if is_speaking else "• AI TEACHER (LISTENING)"
         badge_color = (16, 185, 129) if is_speaking else (148, 163, 184)
         draw.text((60, 115), status_text, fill=badge_color, font=self._get_font(12, bold=True))
 
-        # Suit / Shoulders
+        # Academic Suit & Tie
         draw.polygon([(cx - 110, cy + 220), (cx - 70, cy + 100), (cx + 70, cy + 100), (cx + 110, cy + 220)], fill=(30, 41, 59))
-        # Shirt V-neck & Emerald Tie
         draw.polygon([(cx - 30, cy + 100), (cx + 30, cy + 100), (cx, cy + 160)], fill=(241, 245, 249))
         draw.polygon([(cx - 10, cy + 115), (cx + 10, cy + 115), (cx, cy + 190)], fill=(16, 185, 129))
 
         # Neck & Head
-        draw.rectangle([cx - 20, cy + 70, cx + 20, cy + 105], fill=(253, 224, 71)) # neck
-        draw.ellipse([cx - 65, cy - 70, cx + 65, cy + 70], fill=(254, 240, 138), outline=(234, 179, 8), width=2) # face
+        draw.rectangle([cx - 20, cy + 70, cx + 20, cy + 105], fill=(253, 224, 71))
+        draw.ellipse([cx - 65, cy - 70, cx + 65, cy + 70], fill=(254, 240, 138), outline=(234, 179, 8), width=2)
 
         # Hair
         draw.pieslice([cx - 70, cy - 80, cx + 70, cy + 20], 180, 360, fill=(30, 27, 75))
@@ -102,164 +144,180 @@ class VideoGeneratorService:
         draw.rounded_rectangle([cx + 10, cy - 20, cx + 50, cy + 12], radius=4, outline=(79, 70, 229), width=3)
         draw.line([(cx - 10, cy - 4), (cx + 10, cy - 4)], fill=(79, 70, 229), width=3)
 
-        # Eyes & Pupils
-        draw.ellipse([cx - 35, cy - 10, cx - 25, cy], fill=(15, 23, 42))
-        draw.ellipse([cx + 25, cy - 10, cx + 35, cy], fill=(15, 23, 42))
+        # Eyes (with natural periodic blinks)
+        is_blinking = (frame_idx % 36 in [34, 35])
+        if is_blinking:
+            draw.line([(cx - 35, cy - 5), (cx - 25, cy - 5)], fill=(15, 23, 42), width=2)
+            draw.line([(cx + 25, cy - 5), (cx + 35, cy - 5)], fill=(15, 23, 42), width=2)
+        else:
+            draw.ellipse([cx - 35, cy - 10, cx - 25, cy], fill=(15, 23, 42))
+            draw.ellipse([cx + 25, cy - 10, cx + 35, cy], fill=(15, 23, 42))
 
-        # Mouth (Animated opening and closing)
+        # Animated Mouth
         mouth_open = is_speaking and (frame_idx % 4 in [1, 2])
         if mouth_open:
             draw.ellipse([cx - 16, cy + 28, cx + 16, cy + 46], fill=(159, 18, 57))
-            draw.line([(cx - 10, cy + 33), (cx + 10, cy + 33)], fill=(255, 255, 255), width=2) # teeth
+            draw.line([(cx - 10, cy + 33), (cx + 10, cy + 33)], fill=(255, 255, 255), width=2)
         else:
             draw.arc([cx - 18, cy + 25, cx + 18, cy + 40], 20, 160, fill=(159, 18, 57), width=3)
 
-        # Subtitle badge on Avatar Card
+        # Branding badge
         draw.rounded_rectangle([60, 520, 400, 560], radius=8, fill=(30, 41, 59))
         draw.text((80, 532), "Bharat Academix • Autonomous Gurukul", fill=(203, 213, 225), font=self._get_font(12))
 
-    def _draw_whiteboard(self, draw: ImageDraw.ImageDraw, visual_type: str, visual_spec: dict, concept: str, frame_idx: int):
-        """Draw subject-aware whiteboard with live animations and technical schematics."""
-        bx1, by1, bx2, by2 = 450, 100, 1240, 580
-        # Whiteboard outer card
-        draw.rounded_rectangle([bx1, by1, bx2, by2], radius=16, fill=(15, 23, 42), outline=(51, 65, 85), width=2)
-
-        # Header Toolbar
-        draw.rounded_rectangle([bx1 + 1, by1 + 1, bx2 - 1, by1 + 45], radius=16, fill=(30, 41, 59))
-        draw.text((bx1 + 20, by1 + 14), f"STAGE: {concept.upper()}", fill=(248, 250, 252), font=self._get_font(14, bold=True))
+    def _draw_whiteboard(self, draw: ImageDraw.ImageDraw, visual_type: str, visual_spec: dict, frame_idx: int):
+        """Draw subject-aware technical whiteboard (Circuits, Math, Code, Biology, Chemistry, Charts)."""
+        wx, wy, ww, wh = 460, 100, 780, 480
+        # Whiteboard Background
+        draw.rounded_rectangle([wx, wy, wx + ww, wy + wh], radius=16, fill=(255, 255, 255), outline=(203, 213, 225), width=2)
         
-        type_badge = f"[{visual_type.upper()} MODE]"
-        draw.text((bx2 - 140, by1 + 14), type_badge, fill=(56, 189, 248), font=self._get_font(12, bold=True))
+        # Whiteboard Header
+        draw.rounded_rectangle([wx, wy, wx + ww, wy + 45], radius=16, fill=(248, 250, 252))
+        header_text = f"SUBJECT VISUALIZATION [{visual_type.upper()}]"
+        draw.text((wx + 20, wy + 14), header_text, fill=(15, 23, 42), font=self._get_font(14, bold=True))
 
-        # Canvas inner area
-        cx1, cy1, cx2, cy2 = bx1 + 20, by1 + 60, bx2 - 20, by2 - 20
-        draw.rounded_rectangle([cx1, cy1, cx2, cy2], radius=10, fill=(2, 6, 23), outline=(30, 41, 59), width=1)
+        # 1. CIRCUIT / ELECTRICAL DIAGRAM
+        if visual_type == "diagram" or "circuit" in visual_type.lower():
+            # Voltage Source
+            draw.ellipse([wx + 100, wy + 200, wx + 180, wy + 280], outline=(16, 185, 129), width=3)
+            draw.text((wx + 125, wy + 225), "V", fill=(16, 185, 129), font=self._get_font(24, bold=True))
+            draw.text((wx + 115, wy + 295), "Potential (V)", fill=(15, 23, 42), font=self._get_font(13, bold=True))
 
-        # Content Rendering Based on Visual Type
-        if visual_type == "chart":
-            # Draw coordinate axes
-            ox, oy = cx1 + 80, cy2 - 70
-            draw.line([(ox, oy), (cx2 - 60, oy)], fill=(100, 116, 139), width=2) # X axis
-            draw.line([(ox, oy), (ox, cy1 + 60)], fill=(100, 116, 139), width=2) # Y axis
-            draw.text((cx2 - 140, oy + 10), "Voltage (V) →", fill=(148, 163, 184), font=self._get_font(12))
-            draw.text((ox - 70, cy1 + 40), "Current (I)", fill=(148, 163, 184), font=self._get_font(12))
+            # Connecting Wires with moving current particles
+            draw.line([(wx + 140, wy + 200), (wx + 140, wy + 140), (wx + 640, wy + 140), (wx + 640, wy + 200)], fill=(71, 85, 105), width=3)
+            draw.line([(wx + 140, wy + 280), (wx + 140, wy + 340), (wx + 640, wy + 340), (wx + 640, wy + 280)], fill=(71, 85, 105), width=3)
 
-            # Draw Ohm's Law Line (I = V/R)
-            px_max = cx2 - 100
-            py_max = cy1 + 80
-            draw.line([(ox, oy), (px_max, py_max)], fill=(16, 185, 129), width=4)
+            # Resistor Block
+            draw.rectangle([wx + 580, wy + 200, wx + 700, wy + 280], fill=(254, 242, 242), outline=(239, 68, 68), width=3)
+            draw.text((wx + 605, wy + 225), "R", fill=(239, 68, 68), font=self._get_font(24, bold=True))
+            draw.text((wx + 595, wy + 295), "Resistance (R)", fill=(15, 23, 42), font=self._get_font(13, bold=True))
 
-            # Animated Point
-            t = (frame_idx % 24) / 24.0
-            cur_x = ox + (px_max - ox) * t
-            cur_y = oy + (py_max - oy) * t
-            draw.ellipse([cur_x - 6, cur_y - 6, cur_x + 6, cur_y + 6], fill=(56, 189, 248), outline=(255, 255, 255), width=2)
-            draw.text((cur_x + 10, cur_y - 15), f"Operating Pt: I={t*5:.1f}A", fill=(56, 189, 248), font=self._get_font(12, bold=True))
+            # Current Arrow Animation
+            offset = (frame_idx * 12) % 400
+            curr_x = wx + 180 + offset
+            if curr_x < wx + 580:
+                draw.ellipse([curr_x - 5, wy + 135, curr_x + 5, wy + 145], fill=(234, 179, 8))
+            draw.text((wx + 340, wy + 115), "Current Flow I = V / R", fill=(16, 185, 129), font=self._get_font(14, bold=True))
 
-            # Formula overlay badge
-            draw.rounded_rectangle([cx1 + 40, cy1 + 20, cx1 + 220, cy1 + 60], radius=6, fill=(30, 41, 59))
-            draw.text((cx1 + 55, cy1 + 28), "Linear Slope = 1 / R", fill=(251, 191, 36), font=self._get_font(14, bold=True))
+        # 2. BIOLOGY / CELLULAR STRUCTURE
+        elif visual_type == "biology" or "bio" in visual_type.lower():
+            cx, cy = wx + 380, wy + 240
+            # Outer Cell Membrane
+            draw.ellipse([cx - 240, cy - 140, cx + 240, cy + 140], fill=(240, 253, 244), outline=(34, 197, 94), width=3)
+            draw.text((cx - 220, cy - 120), "Cell Membrane", fill=(22, 101, 52), font=self._get_font(12, bold=True))
+            # Nucleus
+            draw.ellipse([cx - 70, cy - 60, cx + 70, cy + 60], fill=(254, 243, 199), outline=(217, 119, 6), width=3)
+            draw.text((cx - 30, cy - 10), "Nucleus", fill=(146, 64, 14), font=self._get_font(14, bold=True))
+            # Mitochondria & Organelles
+            draw.ellipse([cx + 120, cy - 40, cx + 180, cy], fill=(254, 226, 226), outline=(220, 38, 38), width=2)
+            draw.text((cx + 105, cy + 10), "Mitochondria", fill=(153, 27, 27), font=self._get_font(11, bold=True))
+            draw.text((wx + 260, wy + 420), "Structure & Functional Dynamics of Biological Systems", fill=(15, 23, 42), font=self._get_font(13, bold=True))
 
-        elif visual_type == "diagram":
-            # Draw Closed-Loop Electrical Circuit
-            rx1, ry1, rx2, ry2 = cx1 + 100, cy1 + 70, cx2 - 100, cy2 - 70
-            draw.rectangle([rx1, ry1, rx2, ry2], outline=(56, 189, 248), width=3)
+        # 3. CHEMISTRY / MOLECULAR REACTION
+        elif visual_type == "chemistry" or "chem" in visual_type.lower():
+            # Reaction pathway / Molecular bonds
+            draw.line([(wx + 100, wy + 380), (wx + 700, wy + 380)], fill=(203, 213, 225), width=2)
+            # Energy activation curve
+            points = []
+            for px in range(100, 700, 10):
+                nx = (px - 100) / 600.0
+                py = wy + 380 - int(240 * math.exp(-((nx - 0.4) ** 2) / 0.05))
+                points.append((wx + px, py))
+            draw.line(points, fill=(79, 70, 229), width=4)
+            draw.text((wx + 280, wy + 120), "Activation Energy (Ea)", fill=(79, 70, 229), font=self._get_font(14, bold=True))
+            draw.text((wx + 120, wy + 350), "Reactants [A + B]", fill=(16, 185, 129), font=self._get_font(13, bold=True))
+            draw.text((wx + 580, wy + 350), "Products [C + D]", fill=(239, 68, 68), font=self._get_font(13, bold=True))
 
-            # Voltage Source (Left)
-            draw.rectangle([rx1 - 6, (ry1 + ry2)//2 - 25, rx1 + 6, (ry1 + ry2)//2 + 25], fill=(2, 6, 23))
-            draw.line([(rx1 - 15, (ry1 + ry2)//2 - 15), (rx1 + 15, (ry1 + ry2)//2 - 15)], fill=(16, 185, 129), width=5)
-            draw.line([(rx1 - 8, (ry1 + ry2)//2 + 15), (rx1 + 8, (ry1 + ry2)//2 + 15)], fill=(16, 185, 129), width=3)
-            draw.text((rx1 - 50, (ry1 + ry2)//2 - 10), "+ V -", fill=(16, 185, 129), font=self._get_font(14, bold=True))
-
-            # Resistor (Top)
-            mid_x = (rx1 + rx2) // 2
-            draw.rectangle([mid_x - 50, ry1 - 8, mid_x + 50, ry1 + 8], fill=(2, 6, 23))
-            # Zig-zag resistor lines
-            draw.line([(mid_x - 45, ry1), (mid_x - 30, ry1 - 15), (mid_x - 15, ry1 + 15), (mid_x, ry1 - 15), (mid_x + 15, ry1 + 15), (mid_x + 30, ry1 - 15), (mid_x + 45, ry1)], fill=(245, 158, 11), width=3)
-            draw.text((mid_x - 35, ry1 - 40), "Resistor (R)", fill=(245, 158, 11), font=self._get_font(13, bold=True))
-
-            # Current Arrow with animated electron pulses
-            pulse_offset = (frame_idx * 15) % (rx2 - rx1)
-            pulse_x = rx1 + pulse_offset
-            draw.ellipse([pulse_x - 4, ry1 - 4, pulse_x + 4, ry1 + 4], fill=(255, 255, 255))
-            draw.text((mid_x - 60, ry2 + 20), "→ Directional Current Flow (I) →", fill=(56, 189, 248), font=self._get_font(13, bold=True))
-
+        # 4. MATH DERIVATION & QUANTITATIVE
         elif visual_type == "math":
-            # Mathematical Derivation Box
-            draw.rounded_rectangle([cx1 + 60, cy1 + 40, cx2 - 60, cy2 - 40], radius=8, fill=(15, 23, 42), outline=(79, 70, 229), width=2)
-            draw.text((cx1 + 100, cy1 + 70), "MATHEMATICAL FORMULATION", fill=(165, 180, 252), font=self._get_font(14, bold=True))
-            
-            formula = visual_spec.get("formula", "V = I · R  ⟹  I = V / R")
-            draw.text((cx1 + 100, cy1 + 130), formula, fill=(16, 185, 129), font=self._get_font(28, bold=True))
-            
-            desc = visual_spec.get("derivation_step", "Potential Difference (Volts) equals Current (Amps) × Resistance (Ohms)")
-            draw.text((cx1 + 100, cy1 + 200), desc, fill=(203, 213, 225), font=self._get_font(14))
+            draw.rounded_rectangle([wx + 40, wy + 80, wx + 740, wy + 420], radius=12, fill=(248, 250, 252), outline=(226, 232, 240))
+            draw.text((wx + 70, wy + 110), "MATHEMATICAL FORMULATION", fill=(71, 85, 105), font=self._get_font(12, bold=True))
+            formula = visual_spec.get("formula", "Output = Driving Force / Opposing Resistance")
+            draw.text((wx + 70, wy + 160), formula, fill=(15, 23, 42), font=self._get_font(22, bold=True))
+            draw.line([(wx + 70, wy + 220), (wx + 710, wy + 220)], fill=(203, 213, 225), width=1)
+            draw.text((wx + 70, wy + 250), "• Step 1: Establish governing direct proportionality", fill=(30, 41, 59), font=self._get_font(14))
+            draw.text((wx + 70, wy + 290), "• Step 2: Differentiate dampening resistance factors", fill=(30, 41, 59), font=self._get_font(14))
+            draw.text((wx + 70, wy + 330), "• Step 3: Compute deterministic equilibrium state", fill=(16, 185, 129), font=self._get_font(14, bold=True))
 
+        # 5. PROGRAMMING / CODE EXECUTION
         elif visual_type == "code":
-            # Interactive Python IDE Box
-            draw.rounded_rectangle([cx1 + 40, cy1 + 30, cx2 - 40, cy2 - 30], radius=8, fill=(15, 23, 42))
-            draw.text((cx1 + 60, cy1 + 45), "# Python 3.11 Computational Demonstration", fill=(100, 116, 139), font=self._get_font(13))
-            
-            code_text = visual_spec.get("code_snippet", "def calculate_current(voltage: float, resistance: float) -> float:\n    return voltage / resistance\n\n# Calculate for 12V supply across 4 Ohm load:\nprint(f'Current = {calculate_current(12, 4)} Amperes')")
-            y_offset = cy1 + 80
-            for line in code_text.splitlines():
-                draw.text((cx1 + 60, y_offset), line, fill=(52, 211, 153), font=self._get_font(13, bold=False))
-                y_offset += 25
-            
-            # Simulated terminal output box
-            draw.rounded_rectangle([cx1 + 60, cy2 - 90, cx2 - 60, cy2 - 45], radius=6, fill=(2, 6, 23), outline=(51, 65, 85), width=1)
-            draw.text((cx1 + 75, cy2 - 75), "> [Output]: Current = 3.0 Amperes", fill=(56, 189, 248), font=self._get_font(13, bold=True))
-        else:
-            # Default Conceptual Milestone Canvas
-            draw.text((cx1 + 80, cy1 + 80), concept, fill=(255, 255, 255), font=self._get_font(22, bold=True))
-            draw.text((cx1 + 80, cy1 + 140), visual_spec.get("description", "Fundamental learning milestone representation"), fill=(203, 213, 225), font=self._get_font(14))
+            draw.rounded_rectangle([wx + 40, wy + 80, wx + 740, wy + 420], radius=12, fill=(15, 23, 42))
+            draw.text((wx + 60, wy + 100), "# Python Computational Implementation", fill=(148, 163, 184), font=self._get_font(13, bold=True))
+            draw.text((wx + 60, wy + 140), "def compute_system_response(driving_force, resistance):", fill=(248, 250, 252), font=self._get_font(14))
+            draw.text((wx + 90, wy + 180), "if resistance <= 0: raise ValueError('Zero resistance')", fill=(251, 146, 60), font=self._get_font(14))
+            draw.text((wx + 90, wy + 220), "current_flow = driving_force / resistance", fill=(56, 189, 248), font=self._get_font(14))
+            draw.text((wx + 90, wy + 260), "return current_flow", fill=(56, 189, 248), font=self._get_font(14))
+            draw.text((wx + 60, wy + 330), ">>> Result: 2.50 Amperes [Verified Safe Operation]", fill=(74, 222, 128), font=self._get_font(14, bold=True))
 
-    def _render_frame(self, lesson_topic: str, scene_title: str, scene_idx: int, total_scenes: int, 
-                      visual_type: str, visual_spec: dict, subtitle_text: str, is_speaking: bool, 
-                      frame_idx: int, elapsed_time_s: float) -> np.ndarray:
-        """Render a single 1280x720 RGB frame."""
-        img = Image.new("RGB", (self.width, self.height), (2, 6, 23)) # Deep background
+        # 6. DEFAULT CHART / COORDINATE PLOT
+        else:
+            draw.line([(wx + 100, wy + 380), (wx + 700, wy + 380)], fill=(15, 23, 42), width=2) # X Axis
+            draw.line([(wx + 100, wy + 380), (wx + 100, wy + 100)], fill=(15, 23, 42), width=2) # Y Axis
+            draw.text((wx + 620, wy + 390), "Driving Force (X)", fill=(100, 116, 139), font=self._get_font(12, bold=True))
+            draw.text((wx + 50, wy + 80), "Output (Y)", fill=(100, 116, 139), font=self._get_font(12, bold=True))
+            # Linear line with moving highlight
+            draw.line([(wx + 100, wy + 380), (wx + 680, wy + 120)], fill=(16, 185, 129), width=4)
+            point_x = wx + 100 + int(((frame_idx * 8) % 580))
+            point_y = wy + 380 - int(((point_x - wx - 100) / 580.0) * 260)
+            draw.ellipse([point_x - 8, point_y - 8, point_x + 8, point_y + 8], fill=(234, 179, 8), outline=(15, 23, 42), width=2)
+
+    def _render_frame(
+        self,
+        lesson_topic: str,
+        scene_title: str,
+        scene_idx: int,
+        total_scenes: int,
+        visual_type: str,
+        visual_spec: dict,
+        subtitle_text: str,
+        is_speaking: bool,
+        frame_idx: int,
+        elapsed_time_s: float
+    ) -> np.ndarray:
+        """Render individual 720p video frame composed with avatar, whiteboard, headers, and subtitles."""
+        img = Image.new("RGB", (self.width, self.height), color=(241, 245, 249))
         draw = ImageDraw.Draw(img)
 
-        # 1. Top Navbar Header
-        draw.rectangle([0, 0, self.width, 65], fill=(15, 23, 42))
-        draw.line([(0, 65), (self.width, 65)], fill=(51, 65, 85), width=1)
-        
-        # Brand
-        draw.rounded_rectangle([30, 16, 62, 48], radius=6, fill=(16, 185, 129))
-        draw.text((75, 22), "Bharat Academix", fill=(255, 255, 255), font=self._get_font(16, bold=True))
-        draw.text((235, 24), "• AI TEACHER VIDEO ENGINE", fill=(148, 163, 184), font=self._get_font(12))
-
-        # Scene Counter Badge
-        scene_badge = f"Scene {scene_idx}/{total_scenes}: {scene_title}"
-        draw.rounded_rectangle([self.width - 450, 16, self.width - 150, 48], radius=8, fill=(30, 41, 59))
-        draw.text((self.width - 435, 24), scene_badge, fill=(251, 191, 36), font=self._get_font(13, bold=True))
+        # 1. Top Navbar / Header
+        draw.rectangle([0, 0, self.width, 70], fill=(15, 23, 42))
+        draw.text((40, 22), "BHARAT ACADEMIX", fill=(255, 255, 255), font=self._get_font(18, bold=True))
+        draw.text((230, 25), f"|  {lesson_topic}  •  Scene {scene_idx}/{total_scenes}: {scene_title}", fill=(148, 163, 184), font=self._get_font(14))
 
         # Time Counter
         mins = int(elapsed_time_s // 60)
         secs = int(elapsed_time_s % 60)
-        draw.text((self.width - 120, 24), f"{mins:02d}:{secs:02d}", fill=(203, 213, 225), font=self._get_font(14, bold=True))
+        draw.text((self.width - 160, 24), f"{mins:02d}:{secs:02d} / 720p", fill=(16, 185, 129), font=self._get_font(14, bold=True))
 
-        # 2. Left Teacher Avatar Card
+        # 2. Draw Left Column Teacher Avatar
         self._draw_avatar(draw, is_speaking, frame_idx)
 
-        # 3. Right Whiteboard Stage
-        self._draw_whiteboard(draw, visual_type, visual_spec, scene_title, frame_idx)
+        # 3. Draw Right Column Technical Whiteboard
+        self._draw_whiteboard(draw, visual_type, visual_spec, frame_idx)
 
-        # 4. Bottom Live Subtitle Banner
-        draw.rounded_rectangle([40, 600, self.width - 40, 690], radius=12, fill=(15, 23, 42), outline=(51, 65, 85), width=2)
-        draw.text((60, 612), "LIVE CAPTIONS", fill=(16, 185, 129), font=self._get_font(11, bold=True))
+        # 4. Live Subtitle Banner at bottom
+        draw.rounded_rectangle([40, 600, self.width - 40, 690], radius=12, fill=(15, 23, 42), outline=(51, 65, 85), width=1)
+        draw.text((60, 610), "LIVE SUBTITLES (SYNCHRONIZED SPEECH)", fill=(16, 185, 129), font=self._get_font(10, bold=True))
         
-        # Wrap subtitles if long
-        wrapped_sub = subtitle_text[:130] + ("..." if len(subtitle_text) > 130 else "")
-        draw.text((60, 638), f'"{wrapped_sub}"', fill=(255, 255, 255), font=self._get_font(15, bold=True))
+        # Word wrap subtitle
+        sub_words = subtitle_text.split()
+        sub_line1 = " ".join(sub_words[:16])
+        sub_line2 = " ".join(sub_words[16:32]) if len(sub_words) > 16 else ""
+        draw.text((60, 630), sub_line1, fill=(255, 255, 255), font=self._get_font(14))
+        if sub_line2:
+            draw.text((60, 655), sub_line2, fill=(203, 213, 225), font=self._get_font(13))
 
         return np.array(img)
 
-    def generate_lesson_video(self, session_id: str, lesson_topic: str, segments: list, language: str = "English") -> dict:
+    def generate_lesson_video(
+        self,
+        session_id: str,
+        lesson_topic: str,
+        segments: list,
+        language: str = "English"
+    ) -> dict:
         """
-        Generates a complete, multi-scene educational .mp4 video with synchronized TTS audio,
-        animated avatar, technical whiteboard visuals, and subtitle banners.
+        Generates a complete multi-scene educational MP4 video.
+        Ensures valid audio container output and returns full scene metadata.
         """
         output_mp4 = os.path.join(self.output_dir, f"{session_id}.mp4")
         temp_dir = tempfile.mkdtemp()
@@ -268,26 +326,23 @@ class VideoGeneratorService:
         scene_video_segments = []
         current_time = 0.0
 
-        # Build 4-5 structured pedagogical scenes from lesson segments
+        # Build pedagogical scenes from lesson segments
         scenes = []
-        # Scene 1: Introduction
         scenes.append({
             "title": f"Introduction to {lesson_topic}",
             "visual_type": "diagram",
             "visual_spec": {"description": f"Overview of {lesson_topic}"},
-            "script": f"Welcome to Bharat Academix! Today, we will master {lesson_topic}. We will break down the fundamental intuition, explore real-world mechanics, and verify our understanding step-by-step."
+            "script": f"Welcome to Bharat Academix! Today, we will master {lesson_topic}. We will explore the fundamental intuition and real-world mechanics step-by-step."
         })
 
-        # Scenes from segments
         for seg in segments[:3]:
             scenes.append({
                 "title": seg.get("concept", "Core Intuition"),
                 "visual_type": seg.get("visual_type", "chart"),
                 "visual_spec": seg.get("visual_spec", {}),
-                "script": seg.get("explanation_text", f"Let us understand {seg.get('concept', 'this core principle')}.")
+                "script": seg.get("explanation_text", f"Let us examine {seg.get('concept', 'this core principle')}.")
             })
 
-        # Final Scene: Check For Understanding
         scenes.append({
             "title": "Conceptual Mastery Check",
             "visual_type": "math",
@@ -297,13 +352,12 @@ class VideoGeneratorService:
 
         total_scenes = len(scenes)
 
-        # Generate each scene
         for idx, scene in enumerate(scenes):
             scene_idx = idx + 1
             scene_audio_path = os.path.join(temp_dir, f"scene_{scene_idx}.mp3")
             scene_video_path = os.path.join(temp_dir, f"scene_{scene_idx}.mp4")
 
-            # 1. Synthesize Scene Audio
+            # 1. Synthesize Scene Audio via Multi-Tier Engine
             duration = self.generate_audio(scene["script"], language, scene_audio_path)
             num_frames = max(12, int(duration * self.fps))
 
@@ -321,7 +375,7 @@ class VideoGeneratorService:
                 "visual_type": scene["visual_type"]
             })
 
-            # 3. Render Visual Frames for Scene
+            # 3. Render Visual Frames for Scene with audio muxing
             writer = imageio_ffmpeg.write_frames(
                 scene_video_path,
                 (self.width, self.height),
@@ -332,7 +386,7 @@ class VideoGeneratorService:
                 pix_fmt_in="rgb24",
                 pix_fmt_out="yuv420p"
             )
-            writer.send(None) # Initialize
+            writer.send(None)
 
             for f_idx in range(num_frames):
                 elapsed_s = scene_start + (f_idx / self.fps)
@@ -354,16 +408,14 @@ class VideoGeneratorService:
             writer.close()
             scene_video_segments.append(scene_video_path)
 
-        # 4. Concatenate all scenes into final master MP4 video
+        # 4. Concatenate all scenes into final MP4 video
         concat_txt = os.path.join(temp_dir, "concat.txt")
         with open(concat_txt, "w") as f:
             for v_path in scene_video_segments:
-                # Escape backslashes for ffmpeg concat
                 esc_path = v_path.replace("\\", "/")
                 f.write(f"file '{esc_path}'\n")
 
         ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-        import subprocess
         subprocess.run([
             ffmpeg_exe, "-y", "-f", "concat", "-safe", "0",
             "-i", concat_txt, "-c", "copy", output_mp4

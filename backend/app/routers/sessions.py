@@ -86,6 +86,12 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
     target_language = lesson.profile.language if lesson.profile else "English"
     initial_difficulty = lesson.profile.level if lesson.profile else "Intermediate"
 
+    # Transition lesson and lesson plan from draft to active
+    lesson.status = "active"
+    if lesson.plan:
+        lesson.plan.status = "active"
+    db.commit()
+
     # Create new session entity
     session = LessonSession(
         lesson_id=lesson.id,
@@ -564,17 +570,20 @@ def submit_student_answer(
             db.commit()
         except Exception as e:
             logger.warning(f"Misconception detector error: {e}")
-            misc_desc = "Conflating driving potential with internal resistance."
+            c_name = current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "the core concept")
+            misc_desc = f"Misinterpreted key underlying relationship and parameter dependency in {c_name}."
             misconception_info = {
                 "description": misc_desc,
-                "root_cause": "Applied linear heuristic without accounting for resistance dampening.",
-                "misconception_category": "Linear Heuristic Bias"
+                "root_cause": f"Applied surface-level heuristic without accounting for systemic interactions in {c_name}.",
+                "misconception_category": "Conceptual Relationship Bias"
             }
+            eval_entity.misconception = misconception_info
+            db.commit()
 
         # Call Agent 8: Adaptive Teacher (Claude Sonnet)
         try:
             adapt_data = adapt_and_reteach(
-                concept=current_segment.concept if current_segment else "Current Concept",
+                concept=current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "Current Concept"),
                 misconception=misconception_info,
                 retry_count=current_segment.retry_count if current_segment else 1,
                 profile=session.lesson.profile if session.lesson else None
@@ -583,24 +592,38 @@ def submit_student_answer(
             new_q_payload = adapt_data.get("followup_question")
             adaptation_info = {
                 "action": adapt_data.get("action", "analogy_switch"),
-                "pedagogical_rationale": adapt_data.get("pedagogical_rationale", "Provide concrete physical flow model"),
-                "new_analogy": adapt_data.get("new_analogy", "Water Pipe Analogy")
+                "pedagogical_rationale": adapt_data.get("pedagogical_rationale", f"Provide concrete first-principles model for {current_segment.concept if current_segment else 'concept'}"),
+                "new_analogy": adapt_data.get("new_analogy", f"Intuitive Concrete Model of {current_segment.concept if current_segment else 'concept'}")
             }
         except Exception as e:
             logger.warning(f"AdaptiveTeacher fallback: {e}")
-            new_explanation = "Think of voltage as water pressure in a pipe, and resistance as rocks narrowing the channel. Greater resistance always chokes the flow (current)."
-            adaptation_info = {"action": "analogy_switch", "new_analogy": "Water Pipe Obstruction Analogy"}
+            c_name = current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "the core principle")
+            target_lang = (session.language or "English").lower()
+            if "hindi" in target_lang:
+                new_explanation = f"आइए {c_name} को एक अलग और स्पष्ट दृष्टिकोण से समझते हैं। किसी भी प्रणाली में, मुख्य प्रभाव ड्राइविंग बल और प्रतिरोध के बीच संतुलन पर निर्भर करता है।"
+                prompt_text = f"{c_name} के संशोधित मॉडल के आधार पर, मुख्य संबंध क्या है?"
+                opt_correct = f"{c_name} में आउटपुट ड्राइविंग बल के सीधे आनुपातिक और आंतरिक प्रतिरोध के विपरीत आनुपातिक होता है।"
+            elif "hinglish" in target_lang:
+                new_explanation = f"Chaliye {c_name} ko ek intuitive real-world perspective se dobara samajhte hain. Output hamesha driving potential aur opposing resistance ke ratio par depend karta hai."
+                prompt_text = f"{c_name} ke is model ke hisab se, correct governing principle kya hai?"
+                opt_correct = f"{c_name} me output driving potential ke directly proportional aur resistance ke inversely proportional hota hai."
+            else:
+                new_explanation = f"Let's break down {c_name} using a concrete first-principles model. In this framework, the primary outcome is directly determined by the driving potential scaled against the system's opposing constraints."
+                prompt_text = f"Based on this concrete model of {c_name}, which statement correctly describes the governing behavior?"
+                opt_correct = f"The primary output is directly proportional to the driving force and inversely proportional to the opposing resistance."
+
+            adaptation_info = {"action": "analogy_switch", "new_analogy": f"First-Principles Scaffold for {c_name}"}
             new_q_payload = {
                 "type": "mcq",
-                "prompt": "Based on the water pipe model, if resistance increases (more narrow channel), what happens to current (flow)?",
+                "prompt": prompt_text,
                 "options": [
-                    "Current is directly proportional to voltage and inversely proportional to resistance.",
-                    "Current increases exponentially with higher resistance.",
-                    "Current remains completely constant.",
-                    "Current fluctuates randomly without pattern."
+                    opt_correct,
+                    f"The output increases exponentially regardless of opposing constraints in {c_name}.",
+                    f"The primary parameters in {c_name} operate completely independently with zero correlation.",
+                    f"The internal equilibrium remains entirely constant despite external driving force changes."
                 ],
-                "answer_key": "Current is directly proportional to voltage and inversely proportional to resistance.",
-                "explanation_hint": "Remember: higher resistance restricts the flow rate."
+                "answer_key": opt_correct,
+                "explanation_hint": f"Remember: analyze how driving potential balances against resistance in {c_name}."
             }
 
         # Persist and create the genuine adaptive follow-up Question in DB

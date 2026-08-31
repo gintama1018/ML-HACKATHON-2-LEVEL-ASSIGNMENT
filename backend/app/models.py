@@ -22,6 +22,7 @@ class StudentProfile(Base):
     learner_profiles = relationship("LearnerProfile", back_populates="student", cascade="all, delete-orphan")
     materials = relationship("Material", back_populates="student", cascade="all, delete-orphan")
     lessons = relationship("Lesson", back_populates="student", cascade="all, delete-orphan")
+    learning_paths = relationship("LearningPath", back_populates="student", cascade="all, delete-orphan")
 
 class LearnerProfile(Base):
     __tablename__ = "learner_profiles"
@@ -221,3 +222,34 @@ class LearningReport(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     session = relationship("LessonSession", back_populates="report")
+    
+class LearningPath(Base):
+    __tablename__ = "learning_paths"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    student_id = Column(String(36), ForeignKey("student_profiles.id"), nullable=False)
+    topic = Column(String(255), nullable=False)
+    target_level = Column(String(50), default="Beginner")
+    total_modules = Column(Integer, default=5)
+    current_module_index = Column(Integer, default=0)
+    status = Column(String(50), default="in_progress") # in_progress, completed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    student = relationship("StudentProfile", back_populates="learning_paths")
+    modules = relationship("LearningPathModule", back_populates="path", order_by="LearningPathModule.module_order", cascade="all, delete-orphan")
+
+class LearningPathModule(Base):
+    __tablename__ = "learning_path_modules"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    path_id = Column(String(36), ForeignKey("learning_paths.id"), nullable=False)
+    module_order = Column(Integer, nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    key_concepts = Column(JSON, default=list) # ["concept 1", "concept 2"]
+    is_unlocked = Column(Boolean, default=False)
+    is_completed = Column(Boolean, default=False)
+    score = Column(Float, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
+    path = relationship("LearningPath", back_populates="modules")

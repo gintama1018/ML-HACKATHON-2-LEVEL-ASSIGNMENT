@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -17,6 +18,15 @@ def get_or_create_default_student(db: Session = Depends(get_db)):
         db.add(student)
         db.commit()
         db.refresh(student)
+    return student
+
+@router.post("/students", response_model=StudentProfileResponse)
+def create_student(payload: Optional[StudentProfileUpdate] = None, db: Session = Depends(get_db)):
+    name = payload.name if payload and payload.name else "Student"
+    student = StudentProfile(name=name)
+    db.add(student)
+    db.commit()
+    db.refresh(student)
     return student
 
 @router.get("/students/{student_id}/profile", response_model=StudentProfileResponse)

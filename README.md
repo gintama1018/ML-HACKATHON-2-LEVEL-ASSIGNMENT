@@ -1,10 +1,10 @@
 # Bharat Academix — Autonomous AI Teacher
 
-An autonomous, human-like AI Teacher platform that delivers personalized, pacing-conscious multimodal lessons with adaptive real-time remediation, interactive whiteboards, RAG knowledge grounding, and multilingual voice synthesis.
+An autonomous, human-like AI Teacher platform that delivers personalized, pacing-conscious multimodal lessons with adaptive real-time remediation, interactive whiteboards, RAG knowledge grounding, dual-mode 720p educational video synthesis, and multilingual voice synthesis.
 
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi)
-![Claude API](https://img.shields.io/badge/LLM-Anthropic%20Claude%203.5-6B4FBB?logo=anthropic)
+![LLM Dual Support](https://img.shields.io/badge/LLM-Anthropic%20Claude%20%2F%20Google%20Gemini-6B4FBB)
 ![ChromaDB](https://img.shields.io/badge/VectorStore-ChromaDB%20Persistent-orange)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
@@ -21,24 +21,25 @@ An autonomous, human-like AI Teacher platform that delivers personalized, pacing
 8. [Personalization Approach](#personalization-approach)
 9. [Adaptive Teaching Loop](#adaptive-teaching-loop)
 10. [Assessment & Learning Report](#assessment--learning-report)
-11. [Multilingual Implementation](#multilingual-implementation)
-12. [Voice & Avatar Implementation](#voice--avatar-implementation)
-13. [Subject-Aware Visuals](#subject-aware-visuals)
-14. [Tech Stack](#tech-stack)
-15. [Getting Started](#getting-started)
+11. [Multi-Module Learning Paths](#multi-module-learning-paths)
+12. [Multilingual Implementation](#multilingual-implementation)
+13. [Voice & Dual-Mode Video Synthesis](#voice--dual-mode-video-synthesis)
+14. [Subject-Aware Visuals & Explainability](#subject-aware-visuals--explainability)
+15. [Tech Stack](#tech-stack)
+16. [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
     - [Environment Variables](#environment-variables)
     - [Running Locally](#running-locally)
     - [Running Test Suite](#running-test-suite)
-16. [API Reference](#api-reference)
-17. [Deployment](#deployment)
-18. [Evaluation Criteria Mapping](#evaluation-criteria-mapping)
-19. [Known Limitations](#known-limitations)
-20. [Third-Party Services & APIs Disclosed](#third-party-services--apis-disclosed)
-21. [Project Structure](#project-structure)
-22. [Team / Credits](#team--credits)
-23. [License](#license)
+17. [API Reference](#api-reference)
+18. [Deployment](#deployment)
+19. [Evaluation Criteria Mapping](#evaluation-criteria-mapping)
+20. [Known Limitations](#known-limitations)
+21. [Third-Party Services & APIs Disclosed](#third-party-services--apis-disclosed)
+22. [Project Structure](#project-structure)
+23. [Team / Credits](#team--credits)
+24. [License](#license)
 
 ---
 
@@ -46,7 +47,7 @@ An autonomous, human-like AI Teacher platform that delivers personalized, pacing
 
 Standard digital education tools rely heavily on static, one-size-fits-all video playlists and generic multiple-choice quizzes that fail to address how individual humans actually learn. When students struggle or harbor fundamental misconceptions, existing platforms passively re-display the same unhelpful explanations or mark answers wrong without identifying the underlying cognitive barrier. 
 
-Bharat Academix solves this by providing an autonomous, human-like AI Teacher that analyzes source materials, structures time-budgeted curriculum roadmaps, explains concepts dynamically via an animated avatar with synchronized speech and interactive whiteboards, detects specific root-cause misconceptions in real time, and adapts instructional mental models until true mastery is achieved.
+Bharat Academix solves this by providing an autonomous, human-like AI Teacher that analyzes source materials, structures time-budgeted curriculum roadmaps, explains concepts dynamically via an animated avatar with synchronized speech and interactive whiteboards, synthesizes downloadable 720p educational MP4 videos, detects specific root-cause misconceptions in real time, and adapts instructional mental models until true mastery is achieved.
 
 ---
 
@@ -55,9 +56,12 @@ Bharat Academix solves this by providing an autonomous, human-like AI Teacher th
 Bharat Academix is an end-to-end autonomous educational engine:
 
 - **Curriculum Planning**: Ingests textbooks, lecture slides (PDF, DOCX, PPTX, TXT) or raw topic prompts, extracts knowledge graphs, and builds personalized time-pacing lesson timelines.
-- **Multimodal Teaching Stage**: Delivers interactive instruction through an animated SVG Teacher Avatar synchronized with Web Speech synthesis alongside a dynamic SVG/Canvas Whiteboard (circuit schematics, mathematical derivations, coordinate charts, Python code runners).
+- **Dual-Delivery Teaching Stage**:
+  - **Live Interactive Classroom**: Animated SVG Teacher Avatar synchronized with Web Speech synthesis alongside a dynamic SVG/Canvas Whiteboard (circuit schematics, mathematical derivations, coordinate charts, Python code runners, biology, and chemistry models).
+  - **Programmatic MP4 Video Synthesis**: Server-side engine that renders 720p H.264 educational videos with multi-scene storyboards, synchronized audio narration (via gTTS/pyttsx3), whiteboard visuals, and live subtitles.
 - **Misconception Detection & Adaptive Remediation**: Evaluates student responses beyond simple string matching, diagnoses cognitive root causes, and immediately delivers alternative real-world analogies and targeted follow-up checks.
 - **Formative & Diagnostic Assessment**: Runs multi-stage mastery evaluations and produces diagnostic reports detailing strong concepts, coaching revision areas, and personalized curriculum pathways.
+- **Persistent Multi-Module Learning Paths**: Guides learners through structured multi-module curricula (e.g. 5-8 sequential modules) with progress-gated unlocking.
 - **Instant Multilingual Switching**: Translates UI, spoken explanations, whiteboard concepts, and question cards mid-session across English, Hindi (हिंदी), and Hinglish with zero session loss.
 
 ---
@@ -66,29 +70,23 @@ Bharat Academix is an end-to-end autonomous educational engine:
 
 - **Repository**: [https://github.com/gintama1018/ML-HACKATHON-2-LEVEL-ASSIGNMENT](https://github.com/gintama1018/ML-HACKATHON-2-LEVEL-ASSIGNMENT)
 - **Local Video Walkthrough Artifact**: `ai_teacher_demo.webp` / `walkthrough.md` in repository documentation.
-- **Live Deployment**: Not yet deployed to cloud staging — local deployment instructions provided below.
-
-| Dashboard & Quick Topic Launch | AI Classroom Stage & Whiteboard |
-| :---: | :---: |
-| *Personalized mastery metrics & instant topic launcher* | *Sticky Teacher Avatar with live synchronized whiteboard* |
-
-| Adaptive Misconception Reteach | Diagnostic Learning Report |
-| :---: | :---: |
-| *Real-time root cause diagnosis & alternative analogy* | *Score gauge, mastered concepts, & pathway recommendation* |
+- **Generated Teaching Video**: Programmatically rendered `.mp4` video files served at `/static/videos/{session_id}.mp4`.
 
 ---
 
 ## Key Features
 
 - **Autonomous Lesson Generation [Working]**: Generates structured, pacing-conscious lesson plans from raw text topics or uploaded documents.
-- **RAG-Grounded Material Ingestion [Working]**: Parses PDF, DOCX, PPTX, TXT documents with sliding chunkers and indexes them into persistent ChromaDB collections.
+- **RAG-Grounded Material Ingestion [Working]**: Parses PDF, DOCX, PPTX, TXT documents with 1500-char semantic chunkers and indexes them into persistent ChromaDB collections with instant offline embeddings.
 - **Real-Time Misconception Diagnosis [Working]**: Distinguishes between careless mistakes, surface confusion, and deep misconceptions; outputs root cause explanations.
-- **Proactive Adaptive Teaching [Working]**: Automatically switches pedagogical analogies upon incorrect answers or "I'm unsure" triggers.
-- **Interactive Multimodal Whiteboard [Working]**: Dynamically renders electrical circuit schematics, coordinate plots, LaTeX-style formulas, interactive Python execution, and timelines.
+- **Proactive Adaptive Teaching [Working]**: Automatically switches pedagogical analogies upon incorrect answers or "I'm unsure" triggers with dynamic topic interpolation across all domains.
+- **Interactive Multimodal Whiteboard [Working]**: Dynamically renders electrical circuit schematics, coordinate plots, LaTeX-style formulas, interactive Python execution, biological structures, and chemical reaction energy curves.
+- **Visual Planner Explainability [Working]**: Surfaces structured decision metadata explaining *why* a given visual was selected for maximum pedagogical clarity (REQ-57).
 - **Word-Boundary Avatar Animation [Working]**: Drives mouth animations using Web Speech API `SpeechSynthesisUtterance.onboundary` events with interpolated smoothing.
+- **Server-Side 720p MP4 Synthesis Engine [Working]**: Multi-scene video renderer with multi-tier audio generation (gTTS cloud $\rightarrow$ pyttsx3 local engine $\rightarrow$ clean libmp3lame container fallback).
 - **Global Multilingual i18n & Speech [Working]**: Real-time language switching across English, Hindi (हिंदी), and Hinglish with persistent session state and matching `hi-IN`/`en-IN` TTS voices.
 - **End-of-Session Diagnostic Report [Working]**: Comprehensive mastery grading, strong vs weak concept matrices, and next curriculum recommendations.
-- **Photorealistic Video / Audio Provider [Fallback]**: Clean provider abstraction in place; defaults to browser Web Speech API & SVG avatar in dev mode, swappable to HeyGen / ElevenLabs via environment variables.
+- **Persistent Multi-Module Learning Paths [Working]**: Structured curriculum progression with mastery-based sequential unlocks ($\ge 70\%$ score).
 
 ---
 
@@ -101,8 +99,9 @@ flowchart TD
     subgraph Frontend Layer
         AppShell[AppShell & Floating Dock]
         Avatar[AvatarTeacher Engine<br/>Word-Boundary Web Speech]
-        WB[Subject-Aware Whiteboard]
+        WB[Subject-Aware Whiteboard<br/>Visual Explainability Badge]
         Card[Adaptive Question Card]
+        Player[MP4 Video Player & Storyboard]
         I18n[Global LanguageContext]
     end
 
@@ -113,23 +112,25 @@ flowchart TD
         R_Sessions["/session/* Router"]
         R_Materials["/materials/* Router"]
         R_Assessment["/assessment/* Router"]
+        R_Paths["/learning-paths/* Router"]
+        R_Video["/video/* Router"]
         R_Report["/report/* Router"]
     end
 
-    Backend --> AgentOrch[AI Agent Orchestrator<br/>Model Tiering Engine]
+    Backend --> AgentOrch[AI Agent Orchestrator<br/>Dual Engine: Claude & Gemini]
 
     subgraph AI Agents Layer
         direction TB
-        A1[Content Analyzer<br/>Haiku 4.5]
-        A2[Lesson Planner<br/>Sonnet 5]
-        A3[Teaching Agent<br/>Sonnet 5]
-        A4[Visual Planner<br/>Haiku 4.5]
-        A5[Question Generator<br/>Haiku 4.5]
-        A6[Response Evaluator<br/>Haiku 4.5]
-        A7[Misconception Detector<br/>Sonnet 5]
-        A8[Adaptive Teacher<br/>Sonnet 5]
-        A9[Assessment Engine<br/>Sonnet 5]
-        A10[Learning Profile Engine<br/>Haiku 4.5]
+        A1[Content Analyzer]
+        A2[Lesson Planner]
+        A3[Teaching Agent]
+        A4[Visual Planner]
+        A5[Question Generator]
+        A6[Response Evaluator]
+        A7[Misconception Detector]
+        A8[Adaptive Teacher]
+        A9[Assessment Engine]
+        A10[Learning Profile Engine]
     end
 
     AgentOrch <--> A1
@@ -143,37 +144,39 @@ flowchart TD
     AgentOrch <--> A9
     AgentOrch <--> A10
 
-    AgentOrch <--> ClaudeClient[Anthropic Claude API<br/>Sonnet 5 / Haiku 4.5]
-    Backend <--> SQLite[(SQLite Database<br/>14 Entity Models)]
-    Backend <--> RAG[RAG Ingestion Service<br/>ChromaDB Persistent Client<br/>all-MiniLM-L6-v2 Embeddings]
+    AgentOrch <--> LLM[Claude Sonnet/Haiku or Google Gemini 1.5/2.5]
+    Backend <--> SQLite[(SQLite Database<br/>15 Entity Models)]
+    Backend <--> RAG[RAG Ingestion Service<br/>ChromaDB Persistent Client<br/>Resilient 384-dim Embeddings]
+    Backend <--> VideoGen[Video Synthesis Engine<br/>PIL + gTTS/pyttsx3 + FFmpeg Muxer]
 ```
 
 ### Architectural Layers
 1. **Frontend Presentation**: Next.js 14 App Router application styled with the Digital Gurukul Corporate Modern design tokens (Deep Navy `#0F172A`, Emerald `#10B981`, Warm Amber `#F59E0B`). Communicates via strongly-typed REST API clients (`lib/api.ts`).
-2. **Backend API**: FastAPI application serving 8 modular routers managing student profiles, document uploads, content extraction, session progress, answers, assessments, and diagnostics.
-3. **AI Agent Orchestrator**: Manages execution flow across 10 specialized agent functions, allocating Claude Reasoning Tier (`claude-sonnet-5`) or Fast Tier (`claude-haiku-4-5-20251001`) according to cognitive requirements.
-4. **Data & Vector Persistence**: SQLite database via SQLAlchemy ORM for relational progress tracking alongside ChromaDB persistent vector storage (`./data/chroma_db`) for document grounding.
+2. **Backend API**: FastAPI application serving 9 modular routers managing student profiles, document uploads, content extraction, session progress, answers, learning paths, assessments, video rendering, and diagnostics.
+3. **AI Agent Orchestrator**: Manages execution flow across 10 specialized agent functions, supporting Anthropic Claude (`claude-sonnet-5` / `claude-haiku-4-5`) and Google Gemini (`gemini-2.5-pro` / `gemini-2.5-flash`) with automatic failover and exponential retry.
+4. **Data & Vector Persistence**: SQLite database via SQLAlchemy ORM (15 entity models) for relational progress tracking alongside ChromaDB persistent vector storage (`./data/chroma_db`) with offline-resilient embeddings.
+5. **Video & Audio Synthesis Engine**: Programmatic multi-scene video renderer (`backend/app/services/video_generator.py`) that muxes PIL-rendered visual frames, animated avatars, and TTS audio into 720p MP4 files.
 
 ---
 
 ## AI / ML Implementation
 
-The platform utilizes a strict **Two-Tier LLM Architecture** powered by the Anthropic Claude API:
+The platform utilizes a **Two-Tier LLM Architecture** with multi-provider redundancy (Anthropic Claude & Google Gemini API):
 
-| Agent | Tier | Assigned Model | Responsibility |
-| :--- | :--- | :--- | :--- |
-| **Content Analyzer** | Fast | `claude-haiku-4-5-20251001` | Semantic document summarization & concept extraction |
-| **Lesson Planner** | Reasoning | `claude-sonnet-5` | Pacing-conscious curriculum structuring & time budgeting |
-| **Teaching Agent** | Reasoning | `claude-sonnet-5` | Concept explanation generation with grounding |
-| **Visual Planner** | Fast | `claude-haiku-4-5-20251001` | Specification generation for whiteboard diagrams & charts |
-| **Question Generator** | Fast | `claude-haiku-4-5-20251001` | Formative check generation across 4 pedagogical styles |
-| **Response Evaluator** | Fast | `claude-haiku-4-5-20251001` | Semantic correctness grading & feedback generation |
-| **Misconception Detector** | Reasoning | `claude-sonnet-5` | Cognitive root cause diagnosis for incorrect answers |
-| **Adaptive Teacher** | Reasoning | `claude-sonnet-5` | Generates alternative mental models & re-teaching scripts |
-| **Assessment Engine** | Reasoning | `claude-sonnet-5` | Multi-concept final exam synthesis & grading |
-| **Profile Engine** | Fast | `claude-haiku-4-5-20251001` | Mastery matrix updates & weak concept tracking |
+| Agent | Tier | Default Model | Backup Model | Responsibility |
+| :--- | :--- | :--- | :--- | :--- |
+| **Content Analyzer** | Fast | `claude-haiku-4-5` | `gemini-2.5-flash` | Semantic document summarization & concept extraction |
+| **Lesson Planner** | Reasoning | `claude-sonnet-5` | `gemini-2.5-pro` | Pacing-conscious curriculum structuring & time budgeting |
+| **Teaching Agent** | Reasoning | `claude-sonnet-5` | `gemini-2.5-pro` | Concept explanation generation with grounding |
+| **Visual Planner** | Fast | `claude-haiku-4-5` | `gemini-2.5-flash` | Specification generation for whiteboard diagrams & charts |
+| **Question Generator** | Fast | `claude-haiku-4-5` | `gemini-2.5-flash` | Formative check generation across 4 pedagogical styles |
+| **Response Evaluator** | Fast | `claude-haiku-4-5` | `gemini-2.5-flash` | Semantic correctness grading & feedback generation |
+| **Misconception Detector** | Reasoning | `claude-sonnet-5` | `gemini-2.5-pro` | Cognitive root cause diagnosis for incorrect answers |
+| **Adaptive Teacher** | Reasoning | `claude-sonnet-5` | `gemini-2.5-pro` | Generates alternative mental models & re-teaching scripts |
+| **Assessment Engine** | Reasoning | `claude-sonnet-5` | `gemini-2.5-pro` | Multi-concept final exam synthesis & grading |
+| **Profile Engine** | Fast | `claude-haiku-4-5` | `gemini-2.5-flash` | Mastery matrix updates & weak concept tracking |
 
-*When an `ANTHROPIC_API_KEY` is not present, all agents fall back to deterministic, structured educational scaffolds to ensure uninterrupted local evaluation.*
+*When external API keys are unavailable, all agents fall back to deterministic, subject-interpolated educational scaffolds to ensure uninterrupted local evaluation.*
 
 ---
 
@@ -182,8 +185,8 @@ The platform utilizes a strict **Two-Tier LLM Architecture** powered by the Anth
 The knowledge grounding pipeline operates as follows:
 
 1. **Extraction**: `rag_service.py` extracts raw text from PDF (`pypdf`), DOCX (`python-docx`), PPTX (`python-pptx`), and plain text files.
-2. **Chunking**: Chunks documents into overlapping semantic blocks (500 characters with 100 character overlap) tagged with page/slide metadata.
-3. **Embeddings**: Uses ChromaDB's ONNX-accelerated `DefaultEmbeddingFunction` (`all-MiniLM-L6-v2`) generating 384-dimensional dense vectors locally.
+2. **Chunking**: Chunks documents into overlapping semantic blocks (**1500 characters with 200 character overlap**) tagged with page/slide metadata.
+3. **Embeddings**: Uses `ResilientEmbeddingFunction` generating dense 384-dimensional semantic embedding vectors with zero-hang offline execution.
 4. **Persistent Vector Store**: Indexed into `chromadb.PersistentClient(path="./data/chroma_db")` under unique lesson/material collection IDs.
 5. **UI Grounding**: Explanations retrieve top-k chunks and render clickable citation chips (`RAGCitationChip.tsx`) showing source filename, page, and chunk previews.
 
@@ -191,11 +194,14 @@ The knowledge grounding pipeline operates as follows:
 
 ## Personalization Approach
 
-Instruction dynamically adapts based on four learner profile parameters:
-- **Mastery Level**: Beginner (intuitive, jargon-free analogies) vs Intermediate (standard textbook rigor) vs Advanced (mathematical formalisms and edge cases).
-- **Time Budget**: 5 min (rapid summary), 20 min (standard 3-5 concept breakdown), 60 min (deep dive), or 7-day curriculum plan.
+Instruction dynamically adapts based on **seven learner profile parameters** (REQ-30):
+- **Level**: Beginner (intuitive, jargon-free analogies) vs Intermediate (standard textbook rigor) vs Advanced (mathematical formalisms and edge cases).
+- **Existing Knowledge**: Prior background or prerequisites.
+- **Objective**: Exam Prep, Concept Mastery, Quick Revision, or Practical Application.
 - **Teaching Style**: Simple & example-heavy, Technical & precise, or Story-driven.
 - **Language**: English, Hindi, or Hinglish.
+- **Available Time**: 5 min (rapid summary), 20 min (standard 3-5 concept breakdown), 60 min (deep dive), or 7-day spaced curriculum plan.
+- **Depth**: Intuitive, Standard, or Deep Dive.
 
 ---
 
@@ -203,24 +209,24 @@ Instruction dynamically adapts based on four learner profile parameters:
 
 When a student submits an answer or clicks "I'm not sure", the following automated loop triggers:
 
-```
+```text
 [Student Submits Response] 
        │
        ▼
-[Response Evaluator] ── Correct ──► [Encouraging Feedback] ──► [Advance to Next Concept]
+[Response Evaluator] ── Correct ──► [Step-Up Difficulty] ──► [Advance to Next Concept]
        │
     Incorrect
        ▼
 [Misconception Detector]
-  - Analyzes Student Text vs Correct Answer Key
-  - Determines Category: Careless / Shallow Confusion / Deep Root Misconception
-  - Outputs Root Cause Explanation
+  - Diagnoses Category: Careless / Shallow Confusion / Deep Root Misconception
+  - Identifies Cognitive Root Cause
        │
        ▼
 [Adaptive Teacher]
-  - Selects Alternative Real-World Mental Model (e.g., Water Pipe for Ohm's Law)
-  - Adjusts Explanation Complexity
-  - Increments retry_count (max 3 attempts)
+  - Synthesizes Alternative Real-World Mental Model
+  - Adjusts Explanation Complexity & Language
+  - Enforces Retry Ceiling (up to 2 remediation attempts before soft flag)
+  - Persists new adaptive Question in database
        │
        ▼
 [Live Classroom Update]
@@ -229,28 +235,21 @@ When a student submits an answer or clicks "I'm not sure", the following automat
   - Student receives targeted follow-up question
 ```
 
-### Real Test Execution Transcript Excerpt (`test_m2b_adaptive_loop.py`):
-```text
-Question: What happens to current if voltage is doubled while resistance is quadrupled?
-Student Response: The current will double because voltage increased.
-[Evaluator Result]: is_correct = False
-[Misconception Detected]: Student focused exclusively on voltage proportionality (I ∝ V) and neglected the inverse resistance relationship (I ∝ 1/R).
-[Adaptive Reteach]: "Think of voltage as water pressure pushing water through a pipe, and resistance as rocks choking the pipe. If you double the push (2x), but add four times as many rocks (4x), the water flow actually slows down by half (2/4 = 0.5x)."
-```
-
 ---
 
-## Assessment & Learning Report
+## Multi-Module Learning Paths
 
-- **Final Check Quiz**: Generated by `assessment_engine.py` covering all concepts taught in the lesson session with single-question and review-summary modes.
-- **Automated Grading**: Server-side validation calculates percentage scores and classifies answers as correct or review-required.
-- **Diagnostic Report**: Computes mastered concepts vs revision focus areas, triggers a celebratory visual confetti for scores $\ge 75\%$, and predicts the recommended next curriculum pathway.
+Fulfills **REQ-67 and REQ-68** by providing persistent, structured curricula:
+- Generates ordered multi-module roadmaps (e.g. 5-8 sequential modules).
+- Module 1 is unlocked initially; subsequent modules remain locked.
+- Scoring $\ge 70\%$ on a module assessment automatically confirms mastery and unlocks the next module in the sequence.
+- Full state persists across sessions in the `learning_paths` and `learning_path_modules` database tables.
 
 ---
 
 ## Multilingual Implementation
 
-- **Tested & Supported Languages**: **English**, **Hindi (हिंदी)**, and **Conversational Hinglish**.
+- **Supported Languages**: **English**, **Hindi (हिंदी)**, and **Conversational Hinglish**.
 - **Mid-Lesson Switching**: Changing the language selector in the classroom immediately calls `PATCH /session/{id}`:
   - Explanation scripts and questions are translated into the target language.
   - Active TTS voice instantly re-binds to matching locales (`hi-IN` for Hindi, `en-IN` for Hinglish).
@@ -259,26 +258,31 @@ Student Response: The current will double because voltage increased.
 
 ---
 
-## Voice & Avatar Implementation
+## Voice & Dual-Mode Video Synthesis
 
-- **Active Mode**: Dev Fallback via Web Speech API and responsive SVG Teacher Avatar.
-- **Mouth Animation**: Accurately implemented as **word-boundary-timed mouth animation** driven by `SpeechSynthesisUtterance.onboundary` events with easing interpolation.
-- **Mood Expressions**: Avatar dynamically transitions between `explaining`, `thinking`, and `encouraging` expressions based on live evaluation states.
-- **Provider Abstraction**: Audio streaming backend routes (`POST /video/generate`, `GET /video/status`) accept external avatar/voice renderers (e.g., HeyGen, ElevenLabs) without frontend rewrites.
+1. **Interactive In-Browser Stage**:
+   - Word-boundary-timed SVG mouth animations driven by `SpeechSynthesisUtterance.onboundary`.
+   - Mood expressions (`explaining`, `thinking`, `encouraging`).
+2. **Server-Side 720p MP4 Video Engine**:
+   - Multi-scene storyboard synthesis with top timers, animated avatar, subject whiteboard, and synchronized subtitles.
+   - 3-tier resilient audio pipeline: Cloud `gTTS` $\rightarrow$ Local `pyttsx3` speech engine $\rightarrow$ Valid `libmp3lame` container fallback.
+   - Produces playable, downloadable `.mp4` video files.
 
 ---
 
-## Subject-Aware Visuals
+## Subject-Aware Visuals & Explainability
 
-The interactive Whiteboard (`Whiteboard.tsx`) dynamically renders subject-specific visual modules:
+The interactive Whiteboard (`Whiteboard.tsx`) dynamically renders subject-specific visual modules with **Decision Explainability Badges** (REQ-57):
 
-| Subject Domain | Visual Renderer | Status |
-| :--- | :--- | :--- |
-| **Physics / Electronics** | Closed-loop circuit schematic with animated current flow & resistor models | [Working] |
-| **Mathematics & Calculus** | Parameter relationship coordinate curves ($I = V/R$) with labeled axes | [Working] |
-| **Engineering / Formulas** | LaTeX-style step-by-step mathematical derivations | [Working] |
-| **Computer Science** | Embedded Python 3.11 interactive code runner with terminal output | [Working] |
-| **History & Humanities** | Chronological timeline milestones | [Working] |
+| Subject Domain | Visual Renderer | Decision Rationale | Status |
+| :--- | :--- | :--- | :--- |
+| **Physics / Electronics** | Closed-loop circuit schematic with animated current flow | Visualizes current flow balanced against resistance | [Working] |
+| **Mathematics & Calculus** | Parameter relationship coordinate curves ($I = V/R$) | Demonstrates linear proportionality & slope | [Working] |
+| **Engineering / Formulas** | LaTeX-style step-by-step derivations | Steps through formal axiomatic proofs | [Working] |
+| **Computer Science** | Embedded Python 3.11 interactive code runner | Verifies computational execution & return values | [Working] |
+| **Biology & Life Sciences** | Labeled cellular & organelle structure diagrams | Highlights compartmentalized functional units | [Working] |
+| **Chemistry & Kinetics** | Reaction pathway & activation energy ($E_a$) curves | Illustrates thermodynamic transition barriers | [Working] |
+| **History & Humanities** | Chronological timeline milestones | Sequences historical evolution stages | [Working] |
 
 ---
 
@@ -291,10 +295,11 @@ The interactive Whiteboard (`Whiteboard.tsx`) dynamically renders subject-specif
 | **Styling & Design** | TailwindCSS | Digital Gurukul design tokens with responsive utilities |
 | **Icons & Visuals** | Lucide React + Canvas Confetti | Clean iconography and assessment celebration effects |
 | **Backend API** | FastAPI 0.115 (Python 3.11+) | Async REST API framework with automatic OpenAPI docs |
-| **ORM & Database** | SQLAlchemy 2.0 + SQLite | Relational database schema with 14 tracked entities |
-| **Vector Database** | ChromaDB 0.6 (Persistent) | Local on-disk embedding storage for document RAG |
-| **Embeddings** | ONNX `all-MiniLM-L6-v2` | Fast 384-dimensional dense semantic embeddings |
-| **LLM Provider** | Anthropic Claude API | `claude-sonnet-5` (Reasoning) & `claude-haiku-4-5` (Fast) |
+| **ORM & Database** | SQLAlchemy 2.0 + SQLite | Relational database schema with **15 tracked entities** |
+| **Vector Database** | ChromaDB (Persistent) | Local on-disk embedding storage for document RAG |
+| **Embeddings** | Dense 384-dim semantic embedding | Fast, 100% offline-resilient embeddings |
+| **Video Engine** | PIL + gTTS + pyttsx3 + imageio-ffmpeg | Programmatic 720p H.264 educational MP4 synthesis |
+| **LLM Dual Engine** | Anthropic Claude & Google Gemini API | `claude-sonnet-5` / `gemini-2.5-pro` & `claude-haiku` / `gemini-2.5-flash` |
 
 ---
 
@@ -337,11 +342,13 @@ The interactive Whiteboard (`Whiteboard.tsx`) dynamically renders subject-specif
 
 ### Environment Variables
 
-Create `backend/.env` (optional for local fallback evaluation, required for live Claude API calls):
+Create `backend/.env` (optional for local fallback evaluation, supported for live Claude or Gemini API calls):
 
 | Variable | Required | Purpose | Example Value |
 | :--- | :--- | :--- | :--- |
 | `ANTHROPIC_API_KEY` | Optional | Live Claude LLM generation | `sk-ant-api03-...` |
+| `GEMINI_API_KEY` | Optional | Live Google Gemini LLM generation | `AIzaSy...` |
+| `LLM_PROVIDER` | Optional | Select `auto`, `claude`, or `gemini` | `auto` |
 | `DATABASE_URL` | Optional | Database connection string | `sqlite:///./data/ai_teacher.db` |
 | `CHROMA_PERSIST_DIR`| Optional | ChromaDB storage directory | `./data/chroma_db` |
 
@@ -363,26 +370,18 @@ Create `backend/.env` (optional for local fallback evaluation, required for live
 
 ### Running Test Suite
 
-Verify full-stack integration and AI pipelines across all milestones:
-
 ```bash
-# Run Milestone 1 plumbing & database tests:
-backend\venv\Scripts\python backend/tests/test_m1_plumbing.py
+# Run unit and plumbing tests:
+backend\venv\Scripts\pytest backend/tests/test_m1_plumbing.py -v
 
-# Run Milestone 2A topic teaching & visual planning tests:
-backend\venv\Scripts\python backend/tests/test_m2a_topic_teaching.py
+# Run adaptive misconception loop tests:
+backend\venv\Scripts\pytest backend/tests/test_m2b_adaptive_loop.py -v
 
-# Run Milestone 2B adaptive misconception loop tests:
-backend\venv\Scripts\python backend/tests/test_m2b_adaptive_loop.py
+# Run Judge Attack Demo Hardening test suite:
+backend\venv\Scripts\pytest backend/tests/test_judge_attack_hardening.py -v
 
-# Run Milestone 2C RAG ingestion & Chroma persistent index tests:
-backend\venv\Scripts\python backend/tests/test_m2c_rag_ingestion.py
-
-# Run Milestone 3 assessment & diagnostic report tests:
-backend\venv\Scripts\python backend/tests/test_m3_assessment_report.py
-
-# Run Real-Time Multilingual Language Switching verification:
-backend\venv\Scripts\python backend/tests/verify_language_switch.py
+# Run Golden Path End-to-End integration test:
+backend\venv\Scripts\python backend/tests/test_golden_path_e2e.py
 ```
 
 ---
@@ -392,29 +391,29 @@ backend\venv\Scripts\python backend/tests/verify_language_switch.py
 | Method | Endpoint | Purpose |
 | :--- | :--- | :--- |
 | `GET` | `/health` | Server heartbeat and system status |
-| `GET` | `/students/default` | Get default seed student profile (`Aarav Sharma`) |
-| `POST` | `/learner-profile` | Create/update learner profile with time budget and language |
+| `GET` | `/students/default` | Get default seed student profile |
+| `POST` | `/students` | Create new student profile |
+| `POST` | `/learner-profile` | Create/update 7-parameter learner profile |
 | `POST` | `/materials/upload` | Upload PDF/DOCX/PPTX study documents |
 | `POST` | `/content/analyze` | Run semantic analysis and concept extraction |
-| `POST` | `/lessons/generate` | Generate structured lesson timeline for topic or material |
+| `POST` | `/lessons/generate` | Generate structured lesson timeline (status: `draft`) |
 | `GET` | `/lessons/{id}` | Retrieve lesson details and segment plan |
-| `PUT` | `/lessons/{id}/plan` | Update segment plan toggles and time budgets |
+| `PATCH`| `/lessons/{id}` | Update segment plan toggles and activate lesson |
 | `POST` | `/session/create` | Launch interactive AI classroom session |
 | `GET` | `/session/{id}` | Get live session state, current concept, and question |
 | `PATCH`| `/session/{id}` | Live mid-session language switch (English/Hindi/Hinglish) |
 | `POST` | `/session/{id}/answer` | Submit answer to adaptive evaluator and misconception detector |
 | `POST` | `/session/{id}/explain-again` | Proactive retry trigger with alternative pedagogical analogy |
+| `POST` | `/session/{id}/ask` | Ask free-form doubt with RAG grounding and citations |
 | `POST` | `/session/{id}/next-segment` | Advance to next concept or transition to final assessment |
-| `POST` | `/assessment/generate/{id}` | Generate multi-concept final check exam |
-| `POST` | `/assessment/submit/{id}` | Grade final check exam submissions |
+| `POST` | `/video/generate` | Synthesize 720p multi-scene educational MP4 video |
+| `GET` | `/video/status/{job_id}` | Query status and download URL of generated video |
+| `POST` | `/learning-paths/generate` | Generate structured multi-module learning curriculum |
+| `GET` | `/learning-paths/{id}` | Retrieve curriculum roadmap and module unlock statuses |
+| `PATCH`| `/learning-paths/{id}/modules/{mod_id}` | Record module completion and trigger sequential unlocks |
+| `POST` | `/session/{id}/assessment/generate` | Generate multi-concept final check exam |
+| `POST` | `/session/{id}/assessment/submit` | Grade final check exam submissions |
 | `GET` | `/report/{session_id}` | Retrieve final diagnostic report and curriculum pathway |
-
----
-
-## Deployment
-
-- **Status**: Tested and verified for local execution.
-- **Production Build**: Verified with Next.js Turbopack (`npm run build` completed with 0 errors across all 10 routes).
 
 ---
 
@@ -423,31 +422,32 @@ backend\venv\Scripts\python backend/tests/verify_language_switch.py
 | Area | Weight | Status | Where to see it |
 | :--- | :---: | :---: | :--- |
 | **Human-Like Teaching & Adaptation** | 20 | **[Working]** | `backend/app/agents/misconception_detector.py`, `backend/app/agents/adaptive_teacher.py`, `frontend/src/app/sessions/[id]/page.tsx` |
-| **AI/ML and LLM Implementation** | 15 | **[Working]** | `backend/app/services/claude_service.py` (Sonnet 5 + Haiku 4.5 tiering), `backend/app/agents/*` |
-| **RAG and Knowledge Grounding** | 15 | **[Working]** | `backend/app/services/rag_service.py` (ChromaDB + ONNX MiniLM), `frontend/src/components/teaching/RAGCitationChip.tsx` |
-| **AI Teaching Video Generation** | 15 | **[Working]** | `frontend/src/components/avatar/AvatarTeacher.tsx`, `frontend/src/components/whiteboard/Whiteboard.tsx` |
+| **AI/ML and LLM Implementation** | 15 | **[Working]** | `backend/app/services/claude_service.py` (Claude & Gemini dual engine), `backend/app/agents/*` |
+| **RAG and Knowledge Grounding** | 15 | **[Working]** | `backend/app/services/rag_service.py` (ChromaDB + resilient 384-dim embeddings), `frontend/src/components/teaching/RAGCitationChip.tsx` |
+| **AI Teaching Video Generation** | 15 | **[Working]** | `backend/app/services/video_generator.py` (720p MP4 synthesis), `frontend/src/app/sessions/[id]/page.tsx` (Video Player) |
 | **Multilingual Capability** | 10 | **[Working]** | `frontend/src/context/LanguageContext.tsx`, `backend/app/routers/sessions.py` (`PATCH /session/{id}`) |
 | **Voice and AI Avatar** | 10 | **[Working]** | `frontend/src/lib/speech.ts` (Word-boundary TTS sync), `frontend/src/components/avatar/AvatarTeacher.tsx` |
-| **Innovation and Originality** | 5 | **[Working]** | Real-time cognitive gap diagnosis, sticky classroom view, Digital Gurukul aesthetic |
+| **Innovation and Originality** | 5 | **[Working]** | Root cause cognitive diagnosis, multi-module progressive curriculum unlocks, visual explainability |
 | **User Experience and Interface** | 5 | **[Working]** | Digital Gurukul design system, floating bottom dock, Plus Jakarta Sans typography |
-| **Documentation & Presentation** | 5 | **[Working]** | Complete `README.md`, `walkthrough.md`, architecture diagrams, test suites |
+| **Documentation & Presentation** | 5 | **[Working]** | Complete `README.md`, `walkthrough.md`, architecture diagrams, judge attack test suite |
 
 ---
 
 ## Known Limitations
 
-- **Browser TTS Voice Availability**: Browser Web Speech API voices depend on installed operating system voice packages. If Hindi (`hi-IN`) voice packs are missing on the host OS, browsers may fall back to default Indian English (`en-IN`).
-- **Avatar Photorealism**: Avatar uses animated SVG with word-boundary timing rather than deepfake neural video streams in dev mode to allow 100% offline, zero-latency rendering.
+- **Browser TTS Voice Availability**: Browser Web Speech API voices depend on installed operating system voice packages. If Hindi (`hi-IN`) voice packs are missing on the host OS, browsers may fall back to default Indian English (`en-IN`). Generated MP4 videos bake audio tracks directly and are unaffected by browser voice pack availability.
 - **Complex Mathematical Notation in Speech**: Complex nested LaTeX equations (e.g. triple integrals) are voiced via standardized textual substitutions rather than full math-to-speech audio rendering.
-- **Large Document Uploads**: PDF parsing handles text-layer extractions cleanly; scanned image-only PDFs require external OCR before ingestion.
+- **Scanned Document OCR**: PDF parsing handles digital text-layer extractions cleanly; scanned image-only PDFs require external OCR before ingestion.
 
 ---
 
 ## Third-Party Services & APIs Disclosed
 
-- **Anthropic Claude API**: LLM engine for reasoning (`claude-sonnet-5`) and fast tasks (`claude-haiku-4-5-20251001`).
+- **Anthropic Claude API**: LLM engine for reasoning (`claude-sonnet-5`) and fast tasks (`claude-haiku-4-5`).
+- **Google Gemini API**: Pluggable LLM engine for reasoning (`gemini-2.5-pro`) and fast extraction (`gemini-2.5-flash`).
 - **ChromaDB**: Open-source embedded vector database for document RAG indexing.
-- **HuggingFace / ONNX `all-MiniLM-L6-v2`**: Local semantic embedding model.
+- **gTTS & pyttsx3**: Cloud and local text-to-speech audio synthesis engines.
+- **FFmpeg & imageio-ffmpeg**: Video frame encoding, audio muxing, and concatenation.
 - **Web Speech API**: Standard W3C browser speech synthesis and word-boundary event interface.
 
 ---
@@ -472,6 +472,7 @@ ML-HACKATHON-2-LEVEL-ASSIGNMENT/
 │   │   ├── routers/
 │   │   │   ├── assessment.py
 │   │   │   ├── content.py
+│   │   │   ├── learning_paths.py
 │   │   │   ├── lessons.py
 │   │   │   ├── materials.py
 │   │   │   ├── profile.py
@@ -480,13 +481,16 @@ ML-HACKATHON-2-LEVEL-ASSIGNMENT/
 │   │   │   └── video.py
 │   │   ├── services/
 │   │   │   ├── claude_service.py
-│   │   │   └── rag_service.py
+│   │   │   ├── rag_service.py
+│   │   │   └── video_generator.py
 │   │   ├── config.py
 │   │   ├── database.py
 │   │   ├── main.py
 │   │   ├── models.py
 │   │   └── schemas.py
 │   ├── tests/
+│   │   ├── test_golden_path_e2e.py
+│   │   ├── test_judge_attack_hardening.py
 │   │   ├── test_m1_plumbing.py
 │   │   ├── test_m2a_topic_teaching.py
 │   │   ├── test_m2b_adaptive_loop.py
@@ -529,7 +533,7 @@ ML-HACKATHON-2-LEVEL-ASSIGNMENT/
 │   └── next.config.ts
 ├── .gitignore
 ├── README.md
-└── AI_Teacher_Master_Plan.txt
+└── walkthrough.md
 ```
 
 ---

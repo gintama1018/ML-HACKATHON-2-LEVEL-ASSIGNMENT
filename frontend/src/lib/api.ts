@@ -242,6 +242,31 @@ export interface LearningReport {
   created_at: string;
 }
 
+export interface LearningPathModule {
+  id: string;
+  path_id: string;
+  module_order: number;
+  title: string;
+  description?: string;
+  key_concepts: string[];
+  is_unlocked: boolean;
+  is_completed: boolean;
+  score?: number;
+  completed_at?: string;
+}
+
+export interface LearningPath {
+  id: string;
+  student_id: string;
+  topic: string;
+  target_level: string;
+  total_modules: number;
+  current_module_index: number;
+  status: "in_progress" | "completed";
+  created_at: string;
+  modules: LearningPathModule[];
+}
+
 export const api = {
   // Student Profile
   async getDefaultStudent(): Promise<StudentProfile> {
@@ -454,6 +479,40 @@ export const api = {
   async getReport(sessionId: string): Promise<LearningReport> {
     const res = await fetch(`${API_BASE}/session/${sessionId}/report`);
     if (!res.ok) throw new Error("Failed to get learning report");
+    return res.json();
+  },
+
+  // Learning Path Multi-Module Progression (REQ-67/68)
+  async getLearningPaths(studentId?: string): Promise<LearningPath[]> {
+    const url = studentId ? `${API_BASE}/learning-paths?student_id=${studentId}` : `${API_BASE}/learning-paths`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async getLearningPath(pathId: string): Promise<LearningPath> {
+    const res = await fetch(`${API_BASE}/learning-paths/${pathId}`);
+    if (!res.ok) throw new Error("Failed to get learning path");
+    return res.json();
+  },
+
+  async generateLearningPath(payload: { topic: string; target_level?: string; total_modules?: number; student_id?: string }): Promise<LearningPath> {
+    const res = await fetch(`${API_BASE}/learning-paths/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to generate learning path");
+    return res.json();
+  },
+
+  async updateModuleProgress(pathId: string, moduleId: string, payload: { is_completed?: boolean; score?: number }): Promise<LearningPathModule> {
+    const res = await fetch(`${API_BASE}/learning-paths/${pathId}/modules/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update module progress");
     return res.json();
   },
 };

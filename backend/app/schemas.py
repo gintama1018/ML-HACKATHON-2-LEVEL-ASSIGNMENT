@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict
 
 # --- Student Profile Schemas ---
@@ -30,18 +30,18 @@ class LearnerProfileCreate(BaseModel):
     student_id: Optional[str] = None
     level: str = "Beginner"
     existing_knowledge: Optional[str] = None
-    objective: Optional[str] = None
+    objective: str = "Concept Mastery" # Exam Prep, Concept Mastery, Quick Revision, Practical Application
     language: str = "English"
     style: str = "Simple & example-heavy"
     available_time: str = "20 min"
-    depth: str = "Standard"
+    depth: str = "Standard" # Intuitive, Standard, Deep Dive
 
 class LearnerProfileResponse(BaseModel):
     id: str
     student_id: str
     level: str
     existing_knowledge: Optional[str] = None
-    objective: Optional[str] = None
+    objective: str
     language: str
     style: str
     available_time: str
@@ -80,21 +80,28 @@ class ContentAnalyzeStatusResponse(BaseModel):
 # --- Lesson Schemas ---
 class LessonGenerateRequest(BaseModel):
     student_id: Optional[str] = None
-    source_type: str  # material, topic
+    source_type: str = "topic"  # material, topic
     material_id: Optional[str] = None
     topic: Optional[str] = None
-    profile_id: str
+    level: str = "Beginner"
+    existing_knowledge: Optional[str] = None
+    objective: str = "Concept Mastery"
+    language: str = "English"
+    style: str = "Simple & example-heavy"
+    available_time: str = "20 min"
+    depth: str = "Standard"
 
-class LessonPlanSegment(BaseModel):
+class LessonSegmentPlan(BaseModel):
     order: int
     concept: str
-    target_time: str
+    target_time_minutes: int
     visual_type: str
     skipped: bool = False
 
-class LessonPlanUpdate(BaseModel):
-    segments: Optional[List[LessonPlanSegment]] = None
-    status: Optional[str] = None
+class LessonPlanUpdateRequest(BaseModel):
+    segments: List[LessonSegmentPlan]
+
+LessonPlanUpdate = LessonPlanUpdateRequest
 
 class LessonPlanResponse(BaseModel):
     id: str
@@ -127,6 +134,7 @@ class SessionUpdateRequest(BaseModel):
     language: Optional[str] = None
     status: Optional[str] = None
     current_step: Optional[int] = None
+    current_difficulty: Optional[str] = None
 
 class SessionSegmentResponse(BaseModel):
     id: str
@@ -152,6 +160,9 @@ class QuestionResponse(BaseModel):
     session_id: str
     segment_id: Optional[str] = None
     type: str
+    difficulty: Optional[str] = "Intermediate"
+    is_adaptive_followup: Optional[bool] = False
+    target_misconception: Optional[str] = None
     prompt: str
     options: Optional[List[str]] = None
     explanation_hint: Optional[str] = None
@@ -168,12 +179,15 @@ class EvaluationResponse(BaseModel):
     id: str
     response_id: str
     correct: bool
-    confidence: float
-    notes: str
-    misconception: Optional[Dict[str, Any]] = None
+    confidence: float = 1.0
+    notes: str = ""
+    feedback: Optional[str] = None
+    misconception: Optional[Union[str, Dict[str, Any]]] = None
     adaptation_decision: Optional[Dict[str, Any]] = None
     new_explanation: Optional[str] = None
     new_question: Optional[Dict[str, Any]] = None
+    current_difficulty: Optional[str] = "Intermediate"
+    is_mastered: bool = False
     is_session_advanced: bool = False
     evaluated_at: datetime
 
@@ -183,12 +197,28 @@ class ExplainAgainRequest(BaseModel):
     segment_id: Optional[str] = None
     focus: Optional[str] = None
 
+class AskTeacherRequest(BaseModel):
+    question: str
+
+class AskTeacherResponse(BaseModel):
+    answer: str
+    voice_script: str
+    citations: List[Dict[str, Any]] = []
+    is_grounded: bool = True
+    confidence: float = 1.0
+    related_concept: Optional[str] = None
+
 class LessonSessionResponse(BaseModel):
     id: str
     lesson_id: str
     status: str
     current_step: int
+    current_difficulty: str = "Intermediate"
+    consecutive_correct: int = 0
+    consecutive_incorrect: int = 0
     language: str
+    video_url: Optional[str] = None
+    video_scenes: Optional[List[Dict[str, Any]]] = []
     started_at: datetime
     completed_at: Optional[datetime] = None
     updated_at: datetime
@@ -234,14 +264,21 @@ class LearningReportResponse(BaseModel):
 
 # --- Video / Audio Job Schemas ---
 class VideoGenerateRequest(BaseModel):
-    segment_id: str
-    provider: Optional[str] = "fallback_svg"
+    session_id: Optional[str] = None
+    segment_id: Optional[str] = None
+    lesson_topic: Optional[str] = None
+    language: Optional[str] = "English"
+    provider: Optional[str] = "edge_tts_imageio"
 
 class VideoJobStatusResponse(BaseModel):
     job_id: str
-    segment_id: str
+    session_id: Optional[str] = None
+    segment_id: Optional[str] = None
     status: str  # queued, processing, ready, failed
     video_url: Optional[str] = None
     audio_url: Optional[str] = None
+    file_size_bytes: Optional[int] = 0
+    total_duration_seconds: Optional[float] = 0.0
+    scenes: Optional[List[Dict[str, Any]]] = []
     captions: Optional[List[Dict[str, Any]]] = None
-    mode: str = "fallback_svg"
+    mode: str = "ai_video_engine"

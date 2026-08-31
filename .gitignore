@@ -25,6 +25,10 @@ backend/uploads/
 *.sqlite
 *.sqlite3
 
+# Video & Generated Media
+static/videos/*.mp4
+backend/static/videos/*.mp4
+
 # Environment Variables
 .env
 .env.local

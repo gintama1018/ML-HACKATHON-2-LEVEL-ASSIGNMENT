@@ -30,19 +30,14 @@ def get_lesson(lesson_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Lesson not found")
     return lesson
 
-@router.patch("/lessons/{lesson_id}", response_model=LessonResponse)
+@router.put("/lessons/{lesson_id}/plan", response_model=LessonResponse)
 def update_lesson_plan(lesson_id: str, payload: LessonPlanUpdate, db: Session = Depends(get_db)):
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
         
-    if payload.status:
-        lesson.status = payload.status
-        
     if lesson.plan and payload.segments is not None:
         lesson.plan.segments = [seg.model_dump() if hasattr(seg, "model_dump") else dict(seg) for seg in payload.segments]
-        if payload.status:
-            lesson.plan.status = payload.status
             
     db.commit()
     db.refresh(lesson)
@@ -60,9 +55,20 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
             db.refresh(student)
         student_id = student.id
         
-    profile = db.query(LearnerProfile).filter(LearnerProfile.id == payload.profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Learner profile not found")
+    # Create or update LearnerProfile from full 7 parameters
+    profile = LearnerProfile(
+        student_id=student_id,
+        level=payload.level or "Beginner",
+        existing_knowledge=payload.existing_knowledge,
+        objective=payload.objective or "Concept Mastery",
+        language=payload.language or "English",
+        style=payload.style or "Simple & example-heavy",
+        available_time=payload.available_time or "20 min",
+        depth=payload.depth or "Standard"
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
 
     extracted_concepts = None
     if payload.material_id:
@@ -80,7 +86,6 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
         segments = plan_data.get("segments", [])
         total_time = plan_data.get("total_estimated_minutes", 20)
     except Exception as e:
-        # Fallback if API key not present or error during test
         topic_title = payload.topic or (material.filename if payload.material_id and material else "Foundations of Subject")
         total_time = 5 if "5" in profile.available_time else (60 if "60" in profile.available_time else 20)
         segments = [
@@ -89,47 +94,46 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
                 "concept": f"Introduction & Core Intuition of {topic_title}",
                 "target_time": f"{max(2, total_time // 3)} min",
                 "visual_type": "diagram",
-                "learning_objective": "Establish fundamental definitions and intuitive motivation",
                 "skipped": False
             },
             {
                 "order": 2,
-                "concept": f"Governing Laws & Analytical Relationships",
-                "target_time": f"{max(3, total_time // 2)} min",
+                "concept": f"Quantitative Mechanics & Mathematical Framework",
+                "target_time": f"{max(2, total_time // 3)} min",
                 "visual_type": "chart",
-                "learning_objective": "Analyze mathematical formulas and parameter dependencies",
                 "skipped": False
             },
             {
                 "order": 3,
-                "concept": f"Real-World Scenarios & Common Edge Cases",
-                "target_time": f"{max(2, total_time // 4)} min",
-                "visual_type": "code",
-                "learning_objective": "Apply theoretical principles to practical problem scenarios",
+                "concept": f"Real-World Engineering & Applied Scenarios",
+                "target_time": f"{max(2, total_time // 3)} min",
+                "visual_type": "math",
                 "skipped": False
             }
         ]
 
+    # Create Lesson entity
     lesson = Lesson(
         student_id=student_id,
         source_type=payload.source_type,
         material_id=payload.material_id,
         topic=payload.topic,
-        profile_id=payload.profile_id,
-        status="draft"
+        profile_id=profile.id,
+        status="active"
     )
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
-    
-    plan = LessonPlan(
+
+    # Create LessonPlan entity
+    lesson_plan = LessonPlan(
         lesson_id=lesson.id,
         segments=segments,
         total_estimated_minutes=total_time,
-        status="draft"
+        status="active"
     )
-    db.add(plan)
+    db.add(lesson_plan)
     db.commit()
     db.refresh(lesson)
-    
+
     return lesson

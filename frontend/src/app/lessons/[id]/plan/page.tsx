@@ -63,10 +63,7 @@ export default function LessonPlanPreviewPage({ params }: PlanPageProps) {
     setIsStarting(true);
     setError(null);
     try {
-      await api.updateLessonPlan(lessonId, {
-        segments,
-        status: "active",
-      });
+      await api.updateLessonPlan(lessonId, segments);
 
       const session = await api.createSession(lessonId);
       router.push(`/sessions/${session.id}`);

@@ -30,11 +30,11 @@ class LearnerProfile(Base):
     student_id = Column(String(36), ForeignKey("student_profiles.id"), nullable=False)
     level = Column(String(50), nullable=False, default="Beginner")  # Beginner, Intermediate, Advanced
     existing_knowledge = Column(Text, nullable=True)
-    objective = Column(String(255), nullable=True)
+    objective = Column(String(255), nullable=False, default="Concept Mastery") # Exam Prep, Concept Mastery, Quick Revision, Practical Application
     language = Column(String(50), nullable=False, default="English")  # English, Hindi, Hinglish, etc.
     style = Column(String(100), nullable=False, default="Simple & example-heavy")
     available_time = Column(String(50), nullable=False, default="20 min")  # 5 min, 20 min, 60 min, 7-day plan
-    depth = Column(String(50), nullable=False, default="Standard")
+    depth = Column(String(50), nullable=False, default="Standard") # Intuitive, Standard, Deep Dive
     created_at = Column(DateTime, default=datetime.utcnow)
     
     student = relationship("StudentProfile", back_populates="learner_profiles")
@@ -107,7 +107,12 @@ class LessonSession(Base):
     lesson_id = Column(String(36), ForeignKey("lessons.id"), nullable=False)
     status = Column(String(50), nullable=False, default="in_progress")  # in_progress, assessment, completed
     current_step = Column(Integer, nullable=False, default=0)
+    current_difficulty = Column(String(50), nullable=False, default="Intermediate") # Beginner, Intermediate, Advanced
+    consecutive_correct = Column(Integer, default=0)
+    consecutive_incorrect = Column(Integer, default=0)
     language = Column(String(50), nullable=False, default="English")
+    video_url = Column(String(500), nullable=True)
+    video_scenes = Column(JSON, nullable=True, default=list)
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -147,6 +152,9 @@ class Question(Base):
     session_id = Column(String(36), ForeignKey("lesson_sessions.id"), nullable=False)
     segment_id = Column(String(36), ForeignKey("session_segments.id"), nullable=True)
     type = Column(String(50), nullable=False)  # mcq, short_answer, problem_solving, own_words
+    difficulty = Column(String(50), default="Intermediate")
+    is_adaptive_followup = Column(Boolean, default=False)
+    target_misconception = Column(Text, nullable=True)
     prompt = Column(Text, nullable=False)
     options = Column(JSON, nullable=True)  # list of options if mcq
     answer_key = Column(Text, nullable=False)
@@ -175,33 +183,23 @@ class Evaluation(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     response_id = Column(String(36), ForeignKey("student_responses.id"), nullable=False, unique=True)
     correct = Column(Boolean, nullable=False)
-    confidence = Column(Float, nullable=False, default=1.0)
-    notes = Column(Text, nullable=False)
+    confidence = Column(Float, default=1.0)
+    notes = Column(Text, nullable=True)
+    misconception = Column(JSON, nullable=True)  # structured misconception {category, description, root_cause}
+    adaptation_decision = Column(JSON, nullable=True) # {strategy, complexity, change_visual}
     evaluated_at = Column(DateTime, default=datetime.utcnow)
     
     response = relationship("StudentResponse", back_populates="evaluation")
-    misconception = relationship("Misconception", back_populates="evaluation", uselist=False, cascade="all, delete-orphan")
-
-class Misconception(Base):
-    __tablename__ = "misconceptions"
-    
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    evaluation_id = Column(String(36), ForeignKey("evaluations.id"), nullable=False, unique=True)
-    description = Column(Text, nullable=False)
-    root_cause = Column(Text, nullable=False)
-    detected_at = Column(DateTime, default=datetime.utcnow)
-    
-    evaluation = relationship("Evaluation", back_populates="misconception")
 
 class Assessment(Base):
     __tablename__ = "assessments"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     session_id = Column(String(36), ForeignKey("lesson_sessions.id"), nullable=False, unique=True)
-    questions = Column(JSON, nullable=False, default=list)  # list of {id, prompt, type, options, answer_key, concept}
-    student_answers = Column(JSON, nullable=False, default=dict)  # map of question_id -> answer_text
-    score = Column(Float, nullable=True)  # percentage 0-100
-    status = Column(String(50), nullable=False, default="in_progress")  # in_progress, completed
+    questions = Column(JSON, nullable=False, default=list) # [{id, prompt, options, answer_key, concept}]
+    student_answers = Column(JSON, default=dict) # {q_id: answer}
+    score = Column(Float, nullable=True)
+    status = Column(String(50), default="pending") # pending, submitted, graded
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     
@@ -213,13 +211,13 @@ class LearningReport(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     session_id = Column(String(36), ForeignKey("lesson_sessions.id"), nullable=False, unique=True)
     score = Column(Float, nullable=False)
-    total_questions = Column(Integer, nullable=False, default=0)
-    correct_answers = Column(Integer, nullable=False, default=0)
-    strong_areas = Column(JSON, nullable=False, default=list)
-    weak_areas = Column(JSON, nullable=False, default=list)
+    total_questions = Column(Integer, nullable=False)
+    correct_answers = Column(Integer, nullable=False)
+    strong_areas = Column(JSON, default=list)
+    weak_areas = Column(JSON, default=list)
     recommended_revision = Column(Text, nullable=True)
     recommended_next_topic = Column(String(255), nullable=True)
-    detailed_breakdown = Column(JSON, nullable=False, default=list)
+    detailed_breakdown = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     session = relationship("LessonSession", back_populates="report")

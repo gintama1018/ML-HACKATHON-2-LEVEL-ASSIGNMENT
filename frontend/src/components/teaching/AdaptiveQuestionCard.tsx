@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { CheckCircle2, HelpCircle, AlertCircle, ArrowRight, RotateCcw, Lightbulb } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CheckCircle2, HelpCircle, AlertCircle, ArrowRight, RotateCcw, Lightbulb, Target, Sparkles } from "lucide-react";
 import { Question, EvaluationResponse } from "@/lib/api";
 
 interface AdaptiveQuestionCardProps {
@@ -15,7 +15,7 @@ interface AdaptiveQuestionCardProps {
 }
 
 export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
-  question,
+  question: initialQuestion,
   isEvaluating,
   evaluationResult,
   onSubmitAnswer,
@@ -23,12 +23,24 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
   onExplainAgain,
   retryCount,
 }) => {
+  const [activeQuestion, setActiveQuestion] = useState<Question>(initialQuestion);
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [textInput, setTextInput] = useState<string>("");
+  const [localEval, setLocalEval] = useState<EvaluationResponse | null>(evaluationResult);
+
+  useEffect(() => {
+    setActiveQuestion(initialQuestion);
+    setSelectedOption("");
+    setTextInput("");
+  }, [initialQuestion.id]);
+
+  useEffect(() => {
+    setLocalEval(evaluationResult);
+  }, [evaluationResult]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const answer = question.type === "mcq" ? selectedOption : textInput;
+    const answer = activeQuestion.type === "mcq" ? selectedOption : textInput;
     if (!answer.trim()) return;
     onSubmitAnswer(answer, false);
   };
@@ -37,16 +49,55 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
     onSubmitAnswer("I am unsure about this concept.", true);
   };
 
+  // When student clicks "Try Follow-up Question", activate the new adaptive question!
+  const handleLoadFollowup = () => {
+    if (localEval?.new_question) {
+      const nq = localEval.new_question;
+      setActiveQuestion({
+        id: nq.id || `${activeQuestion.id}_followup`,
+        session_id: activeQuestion.session_id,
+        segment_id: activeQuestion.segment_id,
+        type: (nq.type as any) || "mcq",
+        is_adaptive_followup: true,
+        prompt: nq.prompt,
+        options: nq.options || [],
+        explanation_hint: nq.explanation_hint || "Apply the alternative analogy",
+        created_at: new Date().toISOString()
+      });
+      setSelectedOption("");
+      setTextInput("");
+      setLocalEval(null); // Reset evaluation to allow solving the new question
+    } else {
+      onContinue();
+    }
+  };
+
+  // Extract misconception description string safely
+  const getMisconceptionText = () => {
+    if (!localEval?.misconception) return null;
+    if (typeof localEval.misconception === "string") return localEval.misconception;
+    return localEval.misconception.description || localEval.misconception.root_cause || "Identified cognitive relationship inversion.";
+  };
+
   return (
     <div className="w-full bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-3">
       {/* Header with question type badge & retry counter */}
       <div className="flex items-center justify-between text-xs">
-        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-bold rounded-md border border-slate-200 text-[10px] uppercase tracking-wider">
-          {question.type === "mcq" && "Multiple Choice"}
-          {question.type === "short_answer" && "Short Answer"}
-          {question.type === "problem_solving" && "Problem Solving"}
-          {question.type === "own_words" && "In Your Own Words"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-bold rounded-md border border-slate-200 text-[10px] uppercase tracking-wider">
+            {activeQuestion.type === "mcq" && "Multiple Choice"}
+            {activeQuestion.type === "short_answer" && "Short Answer"}
+            {activeQuestion.type === "problem_solving" && "Problem Solving"}
+            {activeQuestion.type === "own_words" && "In Your Own Words"}
+          </span>
+
+          {activeQuestion.is_adaptive_followup && (
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-bold text-[10px] flex items-center gap-1">
+              <Target className="w-3 h-3 text-emerald-600" />
+              <span>Targeted Follow-up</span>
+            </span>
+          )}
+        </div>
 
         {retryCount > 0 && (
           <div className="flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -67,15 +118,15 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
 
       {/* Question Prompt */}
       <p className="text-xs sm:text-sm font-bold text-[#0b1c30] leading-snug">
-        {question.prompt}
+        {activeQuestion.prompt}
       </p>
 
       {/* Interactive Answer Area */}
-      {!evaluationResult && (
+      {!localEval && (
         <form onSubmit={handleSubmit} className="space-y-2.5">
-          {question.type === "mcq" && question.options && (
+          {activeQuestion.type === "mcq" && activeQuestion.options && (
             <div className="space-y-1.5">
-              {question.options.map((opt, idx) => (
+              {activeQuestion.options.map((opt, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -95,13 +146,13 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
             </div>
           )}
 
-          {question.type !== "mcq" && (
+          {activeQuestion.type !== "mcq" && (
             <div className="space-y-1.5">
               <textarea
                 rows={2}
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Type your explanation..."
+                placeholder="Explain the concept in your own words..."
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-[#0b1c30] placeholder:text-slate-400 focus:outline-none focus:border-[#0f172a]"
               />
             </div>
@@ -121,13 +172,13 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
 
             <button
               type="submit"
-              disabled={isEvaluating || (question.type === "mcq" ? !selectedOption : !textInput.trim())}
+              disabled={isEvaluating || (activeQuestion.type === "mcq" ? !selectedOption : !textInput.trim())}
               className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               {isEvaluating ? (
                 <>
                   <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Checking...</span>
+                  <span>Evaluating...</span>
                 </>
               ) : (
                 <>
@@ -141,54 +192,63 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
       )}
 
       {/* Post-Evaluation Adaptive Reteach State */}
-      {evaluationResult && (
+      {localEval && (
         <div className="space-y-2.5 animate-in fade-in duration-150 pt-1">
-          {evaluationResult.correct ? (
+          {localEval.correct ? (
             /* Correct Feedback */
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg space-y-1.5">
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Correct! Excellent intuition.</span>
+                <span>Correct! Conceptual Mastery Confirmed.</span>
               </div>
               <p className="text-xs text-emerald-950 leading-relaxed">
-                {evaluationResult.feedback}
+                {localEval.feedback || localEval.notes || "You have correctly applied the fundamental relationship."}
               </p>
               <div className="pt-1 flex justify-end">
                 <button
                   type="button"
                   onClick={onContinue}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <span>Continue Lesson</span>
+                  <span>Advance to Next Concept</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           ) : (
-            /* Incorrect / Misconception Adaptation Feedback */
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+            /* Misconception Diagnostic & Adaptive Reteach */
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg space-y-2.5">
               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Let's look at this differently</span>
+                <span>Misconception Detected — Let's Adapt</span>
               </div>
 
-              {evaluationResult.misconception && (
-                <div className="p-2 bg-white rounded border border-amber-200 text-xs text-slate-700">
-                  <p className="font-bold text-[#0b1c30]">Identified Mental Gap:</p>
-                  <p className="text-[11px] text-slate-600 mt-0.5">{evaluationResult.misconception}</p>
-                </div>
-              )}
-
-              {evaluationResult.new_explanation && (
-                <div className="p-2 bg-white rounded border border-amber-200 text-xs text-slate-700 space-y-1">
-                  <p className="font-bold text-[#0b1c30] flex items-center gap-1">
-                    <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Alternative Analogy:</span>
+              {/* Mental Gap Diagnosis */}
+              {getMisconceptionText() && (
+                <div className="p-2.5 bg-white rounded-lg border border-amber-200 text-xs text-slate-700">
+                  <p className="font-bold text-[#0b1c30] text-[11px] uppercase tracking-wider text-amber-800">
+                    Diagnosed Cognitive Barrier:
                   </p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">{evaluationResult.new_explanation}</p>
+                  <p className="text-xs text-slate-700 mt-0.5 leading-relaxed">
+                    {getMisconceptionText()}
+                  </p>
                 </div>
               )}
 
+              {/* Alternative Analogy */}
+              {localEval.new_explanation && (
+                <div className="p-2.5 bg-white rounded-lg border border-amber-200 text-xs text-slate-700 space-y-1">
+                  <p className="font-bold text-[#0b1c30] text-[11px] uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Alternative Intuitive Mental Model:</span>
+                  </p>
+                  <p className="text-xs text-slate-700 leading-relaxed italic">
+                    "{localEval.new_explanation}"
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons: Explain Again vs Try Targeted Follow-up */}
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
@@ -196,16 +256,17 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
                   className="text-[11px] font-bold text-slate-700 hover:text-[#0b1c30] flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Explain with New Analogy</span>
+                  <span>New Analogy</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={onContinue}
-                  className="px-3 py-1.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  onClick={handleLoadFollowup}
+                  className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <span>Try Follow-up</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Solve Follow-up Question</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

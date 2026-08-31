@@ -117,8 +117,16 @@ def submit_assessment(session_id: str, payload: AssessmentSubmitRequest, db: Ses
         concept = q.get("concept", "General")
         student_ans = answers.get(q_id, "").strip().lower()
         key_ans = q.get("answer_key", "").strip().lower()
-        
-        is_correct = bool(student_ans and (student_ans == key_ans or key_ans in student_ans))
+        is_correct = False
+        if student_ans:
+            if student_ans == key_ans or key_ans in student_ans or student_ans in key_ans:
+                is_correct = True
+            else:
+                k_tokens = set(key_ans.split())
+                s_tokens = set(student_ans.split())
+                overlap = len(k_tokens.intersection(s_tokens))
+                if overlap >= max(1, int(len(k_tokens) * 0.5)):
+                    is_correct = True
         if is_correct:
             correct_count += 1
             if concept not in strong_areas:

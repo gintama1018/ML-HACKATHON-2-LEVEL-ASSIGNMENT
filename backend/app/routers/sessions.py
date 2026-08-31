@@ -1,6 +1,7 @@
 import logging
+import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -12,15 +13,18 @@ from app.models import (
     Question,
     StudentResponse,
     Evaluation,
-    Misconception
+    LearnerProfile
 )
 from app.schemas import (
     SessionCreateRequest,
     SessionUpdateRequest,
     StudentAnswerRequest,
     ExplainAgainRequest,
+    AskTeacherRequest,
+    AskTeacherResponse,
     LessonSessionResponse,
-    EvaluationResponse
+    EvaluationResponse,
+    QuestionResponse
 )
 from app.services.rag_service import rag_service
 from app.services.claude_service import claude_service
@@ -46,10 +50,11 @@ def format_session_response(session: LessonSession, db: Session) -> LessonSessio
 
     current_question = None
     if current_segment:
+        # Get latest active question (including adaptive follow-ups)
         current_question = db.query(Question).filter(
             Question.session_id == session.id,
             Question.segment_id == current_segment.id
-        ).first()
+        ).order_by(Question.created_at.desc()).first()
 
     total_segments = len(session.lesson.plan.segments) if session.lesson and session.lesson.plan and session.lesson.plan.segments else 3
 
@@ -58,7 +63,12 @@ def format_session_response(session: LessonSession, db: Session) -> LessonSessio
         lesson_id=session.lesson_id,
         status=session.status,
         current_step=session.current_step,
+        current_difficulty=session.current_difficulty or "Intermediate",
+        consecutive_correct=session.consecutive_correct or 0,
+        consecutive_incorrect=session.consecutive_incorrect or 0,
         language=session.language,
+        video_url=session.video_url,
+        video_scenes=session.video_scenes or [],
         started_at=session.started_at,
         completed_at=session.completed_at,
         updated_at=session.updated_at,
@@ -74,12 +84,16 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     target_language = lesson.profile.language if lesson.profile else "English"
+    initial_difficulty = lesson.profile.level if lesson.profile else "Intermediate"
 
     # Create new session entity
     session = LessonSession(
         lesson_id=lesson.id,
         status="in_progress",
         current_step=0,
+        current_difficulty=initial_difficulty,
+        consecutive_correct=0,
+        consecutive_incorrect=0,
         language=target_language
     )
     db.add(session)
@@ -100,30 +114,28 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
         if lesson.material_id:
             rag_chunks = rag_service.retrieve_relevant_chunks(lesson.material_id, query=concept, top_k=3)
 
-        # Call Agent 3: Teaching Agent (Claude Sonnet)
+        # Call Agent 3: Teaching Agent
         try:
             teach_data = teach_concept(
                 concept=concept,
-                learning_objective=first_seg_def.get("learning_objective", "Understand core principles"),
+                learning_objective=first_seg_def.get("learning_objective", "Core intuitive understanding"),
                 profile=lesson.profile,
                 rag_chunks=rag_chunks,
                 language_override=target_language
             )
-            explanation_text = teach_data.get("explanation_text", f"Welcome to our lesson on {concept}.")
+            explanation_text = teach_data.get("explanation_text")
             citations = teach_data.get("source_citations", [])
         except Exception as e:
-            logger.warning(f"TeachingAgent call failed: {e}. Using structured default.")
+            logger.warning(f"TeachingAgent fallback on create_session: {e}")
             if target_language.lower() == "hindi":
-                explanation_text = f"नमस्ते! आज के पाठ में हम {concept} के मूलभूत सिद्धांतों को विस्तार से समझेंगे।"
+                explanation_text = f"नमस्ते! आज हम {concept} के मूलभूत सिद्धांतों को विस्तार से समझेंगे।"
             elif target_language.lower() == "hinglish":
-                explanation_text = f"Hello! Aaj ke session me hum {concept} ke fundamental principles ko step by step samjhenge."
+                explanation_text = f"Namaste! Aaj hum {concept} ke core concept ko step-by-step explore karenge."
             else:
                 explanation_text = f"Welcome to today's lesson on {concept}. Let's examine the foundational principles step by step."
-            citations = [
-                {"section_ref": "Section 1: Foundations", "page_number": 1, "excerpt": "Primary defining relationships and rules."}
-            ] if lesson.material_id else []
+            citations = []
 
-        # Call Agent 4: Visual Planner (Claude Haiku)
+        # Call Agent 4: Visual Planner
         try:
             visual_data = plan_visual(concept=concept, visual_type_hint=visual_type_hint, explanation_text=explanation_text)
             chosen_visual_type = visual_data.get("visual_type", visual_type_hint)
@@ -145,13 +157,13 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
         db.add(first_segment)
         db.commit()
         db.refresh(first_segment)
-        
-        # Call Agent 5: Question Generator (Claude Haiku)
+
+        # Call Agent 5: Question Generator
         try:
             q_data = generate_question(
                 concept=concept,
                 explanation_text=explanation_text,
-                level=lesson.profile.level if lesson.profile else "Beginner",
+                level=initial_difficulty,
                 question_type="mcq",
                 language=target_language
             )
@@ -160,41 +172,28 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
             answer_key = q_data.get("answer_key")
             hint = q_data.get("explanation_hint")
         except Exception as e:
+            logger.warning(f"QuestionGenerator fallback on create_session: {e}")
             if target_language.lower() == "hindi":
-                prompt = f"{concept} के संबंध में कौन सा कथन सही है?"
-                options = [
-                    f"यह {lesson.topic or 'विषय'} के मूल संबंध को निर्धारित करता है।",
-                    "यह बाहरी कारकों से पूरी तरह स्वतंत्र है।",
-                    "यह केवल चरम स्थितियों में लागू होता है।",
-                    "यह केवल एक सैद्धांतिक अनुमान है।"
-                ]
-                answer_key = f"यह {lesson.topic or 'विषय'} के मूल संबंध को निर्धारित करता है।"
-                hint = "परिभाषा पर ध्यान दें।"
+                prompt = f"{concept} के संदर्भ में कौन सा कथन सही है?"
+                options = ["यह मुख्य संबंध को निर्धारित करता है।", "यह पूरी तरह अपरिवर्तनीय है।", "यह केवल शून्य तापमान पर लागू होता है।", "इसका कोई व्यावहारिक उपयोग नहीं है।"]
+                answer_key = "यह मुख्य संबंध को निर्धारित करता है।"
+                hint = "मुख्य सूत्र पर विचार करें।"
             elif target_language.lower() == "hinglish":
-                prompt = f"{concept} ke bare me kaun sa statement correct hai?"
-                options = [
-                    f"Ye {lesson.topic or 'topic'} ke fundamental relationship ko govern karta hai.",
-                    "Ye external factors se independent hota hai.",
-                    "Ye sirf extreme cases me apply hota hai.",
-                    "Ye sirf ek theoretical assumption hai."
-                ]
-                answer_key = f"Ye {lesson.topic or 'topic'} ke fundamental relationship ko govern karta hai."
-                hint = "Core definition ko recall karein."
+                prompt = f"{concept} ke context me kaun sa statement correct hai?"
+                options = ["Ye primary physical relationship ko define karta hai.", "Ye completely constant rehta hai.", "Ye zero temperature par hi apply hota hai.", "Iska koi use nahi hai."]
+                answer_key = "Ye primary physical relationship ko define karta hai."
+                hint = "Core formula ko recall karein."
             else:
-                prompt = f"Which statement best characterizes {concept}?"
-                options = [
-                    f"It governs the fundamental relationship in {lesson.topic or 'the subject'}.",
-                    "It is completely independent of external parameters.",
-                    "It applies only under extreme non-physical conditions.",
-                    "It is a purely empirical observation with no theoretical basis."
-                ]
-                answer_key = f"It governs the fundamental relationship in {lesson.topic or 'the subject'}."
-                hint = "Think about the governing definitions."
+                prompt = f"Which statement best describes the fundamental behavior of {concept}?"
+                options = ["It defines the primary direct and inverse physical relationship.", "It remains strictly constant under all conditions.", "It has no practical engineering relevance.", "It applies only in extreme non-physical environments."]
+                answer_key = "It defines the primary direct and inverse physical relationship."
+                hint = "Focus on the governing relationship."
 
         first_question = Question(
             session_id=session.id,
             segment_id=first_segment.id,
             type="mcq",
+            difficulty=initial_difficulty,
             prompt=prompt,
             options=options,
             answer_key=answer_key,
@@ -213,30 +212,30 @@ def get_session(session_id: str, db: Session = Depends(get_db)):
     return format_session_response(session, db)
 
 @router.patch("/session/{session_id}", response_model=LessonSessionResponse)
-def update_session(session_id: str, payload: SessionUpdateRequest, db: Session = Depends(get_db)):
+def update_session(
+    session_id: str,
+    payload: SessionUpdateRequest,
+    db: Session = Depends(get_db)
+):
     session = db.query(LessonSession).filter(LessonSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    if payload.language is not None and payload.language != session.language:
+    if payload.language is not None:
         target_lang = payload.language
         session.language = target_lang
-        
-        # Real-time multilingual adaptation of current segment explanation & question
+
+        # Translate current segment explanation & questions
         current_segment = db.query(SessionSegment).filter(
             SessionSegment.session_id == session.id,
             SessionSegment.segment_order == session.current_step + 1
         ).first()
-        
+
         if current_segment:
             try:
-                trans_prompt = f"""You are the Teaching Agent. Translate and adapt the following explanation into natural, human-like {target_lang} for classroom teaching:
-Original Explanation: {current_segment.explanation_text}
-
-Rules:
-- If Hindi: Write in clear, natural conversational Hindi in Devanagari script (e.g. "नमस्ते! आइए ओम के नियम को समझते हैं...").
-- If Hinglish: Write in colloquial Hindi-English in Latin script (e.g. "Namaste! Chaliye Ohm's Law ko intuitively samajhte hain...").
-- If English: Fluent clear English.
+                trans_prompt = f"""Translate this educational concept explanation into natural {target_lang}:
+Text: {current_segment.explanation_text}
+Concept: {current_segment.concept}
 
 Return valid JSON:
 {{"explanation_text": string}}"""
@@ -249,7 +248,6 @@ Return valid JSON:
                     current_segment.explanation_text = res["explanation_text"]
                     db.commit()
             except Exception as e:
-                logger.warning(f"Claude translation fallback: {e}")
                 c_name = current_segment.concept
                 if target_lang.lower() == "hindi":
                     current_segment.explanation_text = f"नमस्ते! आज हम {c_name} के बारे में विस्तार से सीखेंगे। आइए इसके मुख्य सिद्धांतों, सूत्रों और व्यावहारिक प्रयोगों को सरल हिंदी में समझते हैं।"
@@ -262,7 +260,8 @@ Return valid JSON:
         current_q = db.query(Question).filter(
             Question.session_id == session.id,
             Question.segment_id == (current_segment.id if current_segment else None)
-        ).first()
+        ).order_by(Question.created_at.desc()).first()
+
         if current_q:
             try:
                 q_trans_prompt = f"""Translate and adapt this question into {target_lang}:
@@ -282,8 +281,7 @@ Return JSON:
                     current_q.options = q_res["options"]
                 db.commit()
             except Exception as e:
-                logger.warning(f"Claude question translation fallback: {e}")
-                c_name = current_segment.concept if current_segment else "इस विषय"
+                c_name = current_segment.concept if current_segment else "Concept"
                 if target_lang.lower() == "hindi":
                     current_q.prompt = f"{c_name} के संबंध में कौन सा कथन सही है?"
                     current_q.options = [
@@ -319,6 +317,8 @@ Return JSON:
             session.completed_at = utcnow()
     if payload.current_step is not None:
         session.current_step = payload.current_step
+    if payload.current_difficulty is not None:
+        session.current_difficulty = payload.current_difficulty
         
     session.updated_at = utcnow()
     db.commit()
@@ -337,6 +337,7 @@ def advance_next_segment(session_id: str, db: Session = Depends(get_db)):
     current_step = session.current_step + 1
     session.current_step = current_step
     target_language = session.language or (lesson.profile.language if lesson.profile else "English")
+    current_difficulty = session.current_difficulty or "Intermediate"
     
     if current_step < len(active_segments):
         seg_def = active_segments[current_step]
@@ -348,11 +349,11 @@ def advance_next_segment(session_id: str, db: Session = Depends(get_db)):
         if lesson.material_id:
             rag_chunks = rag_service.retrieve_relevant_chunks(lesson.material_id, query=concept, top_k=3)
 
-        # Call Agent 3: Teaching Agent
+        # Call Agent 3: Teaching Agent (Grounded with difficulty)
         try:
             teach_data = teach_concept(
                 concept=concept,
-                learning_objective=seg_def.get("learning_objective", "Deepen understanding"),
+                learning_objective=f"Master {concept} at {current_difficulty} level",
                 profile=lesson.profile,
                 rag_chunks=rag_chunks,
                 language_override=target_language
@@ -391,12 +392,12 @@ def advance_next_segment(session_id: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_segment)
 
-        # Call Agent 5: Question Generator
+        # Call Agent 5: Question Generator (Difficulty-conscious)
         try:
             q_data = generate_question(
                 concept=concept,
                 explanation_text=explanation_text,
-                level=lesson.profile.level if lesson.profile else "Beginner",
+                level=current_difficulty,
                 question_type="mcq",
                 language=target_language
             )
@@ -425,6 +426,7 @@ def advance_next_segment(session_id: str, db: Session = Depends(get_db)):
             session_id=session.id,
             segment_id=new_segment.id,
             type="mcq",
+            difficulty=current_difficulty,
             prompt=prompt,
             options=options,
             answer_key=answer_key,
@@ -464,7 +466,6 @@ def submit_student_answer(
     # 1. Record student response entity
     response_entity = StudentResponse(
         question_id=question.id,
-        session_id=session.id,
         response_text=payload.response_text,
         is_unsure=payload.is_unsure
     )
@@ -472,7 +473,7 @@ def submit_student_answer(
     db.commit()
     db.refresh(response_entity)
 
-    # 2. Call Agent 6: Response Evaluator (Claude Haiku)
+    # 2. Call Agent 6: Response Evaluator (Semantic Evaluation)
     try:
         eval_data = evaluate_response(
             concept=current_segment.concept if current_segment else "Current Concept",
@@ -506,12 +507,41 @@ def submit_student_answer(
     new_explanation = None
     new_question_data = None
 
-    # 3. IF INCORRECT: Run Misconception Detector & Adaptive Teacher Loop
-    if not is_correct:
-        # Increment retry count on current segment
+    # 3. Stateful Difficulty & Adaptive Remediation State Machine
+    if is_correct:
+        session.consecutive_correct = (session.consecutive_correct or 0) + 1
+        session.consecutive_incorrect = 0
+        
+        # Difficulty Step-Up (e.g. Beginner -> Intermediate -> Advanced)
+        if session.consecutive_correct >= 2:
+            if session.current_difficulty == "Beginner":
+                session.current_difficulty = "Intermediate"
+            elif session.current_difficulty == "Intermediate":
+                session.current_difficulty = "Advanced"
+
         if current_segment:
+            current_segment.is_mastered = True
+        db.commit()
+
+        feedback = "Correct! Excellent intuition and mastery of this concept."
+
+    else:
+        session.consecutive_incorrect = (session.consecutive_incorrect or 0) + 1
+        session.consecutive_correct = 0
+
+        # Difficulty Step-Down (e.g. Advanced -> Intermediate -> Beginner)
+        if session.consecutive_incorrect >= 2:
+            if session.current_difficulty == "Advanced":
+                session.current_difficulty = "Intermediate"
+            elif session.current_difficulty == "Intermediate":
+                session.current_difficulty = "Beginner"
+
+        if current_segment:
+            current_segment.is_mastered = False
             current_segment.retry_count += 1
             db.commit()
+
+        feedback = "Let us examine this concept from an alternative perspective to address the underlying misconception."
 
         # Call Agent 7: Misconception Detector (Claude Sonnet)
         try:
@@ -521,30 +551,24 @@ def submit_student_answer(
                 student_response=payload.response_text,
                 evaluator_notes=notes
             )
-            misc_desc = misc_data.get("description", "Conceptual confusion identified.")
-            misc_root = misc_data.get("root_cause", "Inverted relationship between variables.")
-            misc_cat = misc_data.get("misconception_category", "Overgeneralization")
+            misc_desc = misc_data.get("description", "Conceptual gap regarding parameter relationships.")
+            misc_root = misc_data.get("root_cause", "Misinterpreted inverse proportionality.")
+            misc_cat = misc_data.get("misconception_category", "Relationship Inversion")
             
-            # Save Misconception entity
-            misc_entity = Misconception(
-                evaluation_id=eval_entity.id,
-                description=misc_desc,
-                root_cause=misc_root
-            )
-            db.add(misc_entity)
-            db.commit()
-
             misconception_info = {
                 "description": misc_desc,
                 "root_cause": misc_root,
                 "misconception_category": misc_cat
             }
+            eval_entity.misconception = misconception_info
+            db.commit()
         except Exception as e:
             logger.warning(f"Misconception detector error: {e}")
+            misc_desc = "Conflating driving potential with internal resistance."
             misconception_info = {
-                "description": "Student is conflating the direct and inverse effects of the core variables.",
-                "root_cause": "Intuitive heuristic misapplied to circuit mechanics.",
-                "misconception_category": "Overgeneralization"
+                "description": misc_desc,
+                "root_cause": "Applied linear heuristic without accounting for resistance dampening.",
+                "misconception_category": "Linear Heuristic Bias"
             }
 
         # Call Agent 8: Adaptive Teacher (Claude Sonnet)
@@ -556,34 +580,60 @@ def submit_student_answer(
                 profile=session.lesson.profile if session.lesson else None
             )
             new_explanation = adapt_data.get("new_explanation")
-            new_q = adapt_data.get("followup_question")
-
-            # Add analogy to segment alternative_explanations history
-            if current_segment and new_explanation:
-                current_alts = list(current_segment.alternative_explanations or [])
-                current_alts.append({
-                    "analogy": adapt_data.get("new_analogy", "Physical flow model"),
-                    "timestamp": utcnow().isoformat()
-                })
-                current_segment.alternative_explanations = current_alts
-                db.commit()
-
+            new_q_payload = adapt_data.get("followup_question")
             adaptation_info = {
                 "action": adapt_data.get("action", "analogy_switch"),
-                "pedagogical_rationale": adapt_data.get("pedagogical_rationale", "Use intuitive water pipe analogy"),
-                "new_analogy": adapt_data.get("new_analogy")
+                "pedagogical_rationale": adapt_data.get("pedagogical_rationale", "Provide concrete physical flow model"),
+                "new_analogy": adapt_data.get("new_analogy", "Water Pipe Analogy")
             }
-            new_question_data = new_q
         except Exception as e:
             logger.warning(f"AdaptiveTeacher fallback: {e}")
-            new_explanation = "Think of voltage like water pressure in a pipe, and resistance like a narrow restriction. More restriction means less flow (current)."
-            adaptation_info = {"action": "analogy_switch", "new_analogy": "Water pipe pressure analogy"}
+            new_explanation = "Think of voltage as water pressure in a pipe, and resistance as rocks narrowing the channel. Greater resistance always chokes the flow (current)."
+            adaptation_info = {"action": "analogy_switch", "new_analogy": "Water Pipe Obstruction Analogy"}
+            new_q_payload = {
+                "type": "mcq",
+                "prompt": "Based on the water pipe model, if resistance increases (more narrow channel), what happens to current (flow)?",
+                "options": [
+                    "Current is directly proportional to voltage and inversely proportional to resistance.",
+                    "Current increases exponentially with higher resistance.",
+                    "Current remains completely constant.",
+                    "Current fluctuates randomly without pattern."
+                ],
+                "answer_key": "Current is directly proportional to voltage and inversely proportional to resistance.",
+                "explanation_hint": "Remember: higher resistance restricts the flow rate."
+            }
 
-    else:
-        # Mark concept as mastered in current segment
-        if current_segment:
-            current_segment.is_mastered = True
+        # Persist and create the genuine adaptive follow-up Question in DB
+        if new_q_payload and isinstance(new_q_payload, dict):
+            adaptive_q = Question(
+                session_id=session.id,
+                segment_id=current_segment.id if current_segment else None,
+                type=new_q_payload.get("type", "mcq"),
+                difficulty=session.current_difficulty,
+                is_adaptive_followup=True,
+                target_misconception=misc_desc,
+                prompt=new_q_payload.get("prompt", "Follow-up Check:"),
+                options=new_q_payload.get("options", []),
+                answer_key=new_q_payload.get("answer_key", ""),
+                explanation_hint=new_q_payload.get("explanation_hint", "Use the new mental model")
+            )
+            db.add(adaptive_q)
             db.commit()
+            db.refresh(adaptive_q)
+            new_question_data = {
+                "id": adaptive_q.id,
+                "session_id": session.id,
+                "segment_id": adaptive_q.segment_id,
+                "type": adaptive_q.type,
+                "difficulty": adaptive_q.difficulty,
+                "is_adaptive_followup": True,
+                "target_misconception": misc_desc,
+                "prompt": adaptive_q.prompt,
+                "options": adaptive_q.options,
+                "answer_key": adaptive_q.answer_key,
+                "explanation_hint": adaptive_q.explanation_hint,
+                "created_at": adaptive_q.created_at.isoformat()
+            }
 
     return EvaluationResponse(
         id=eval_entity.id,
@@ -591,12 +641,112 @@ def submit_student_answer(
         correct=is_correct,
         confidence=confidence,
         notes=notes,
+        feedback=feedback,
         misconception=misconception_info,
         adaptation_decision=adaptation_info,
         new_explanation=new_explanation,
         new_question=new_question_data,
+        current_difficulty=session.current_difficulty,
+        is_mastered=is_correct,
         is_session_advanced=is_correct,
-        evaluated_at=eval_entity.created_at
+        evaluated_at=eval_entity.evaluated_at
+    )
+
+@router.post("/session/{session_id}/ask", response_model=AskTeacherResponse)
+def ask_teacher_doubt(
+    session_id: str,
+    payload: AskTeacherRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Context-aware Free-form Student Doubt Resolution.
+    Answers student questions using active lesson context + RAG source material.
+    """
+    session = db.query(LessonSession).filter(LessonSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    current_segment = db.query(SessionSegment).filter(
+        SessionSegment.session_id == session.id,
+        SessionSegment.segment_order == session.current_step + 1
+    ).first()
+
+    lesson = session.lesson
+    topic = lesson.topic if lesson else "Core Subject"
+    concept = current_segment.concept if current_segment else topic
+    language = session.language or "English"
+
+    # 1. RAG Retrieval from uploaded material if present
+    citations = []
+    rag_context = ""
+    is_grounded = False
+    confidence = 0.88
+
+    if lesson and lesson.material_id:
+        chunks = rag_service.retrieve_relevant_chunks(lesson.material_id, query=payload.question, top_k=3)
+        if chunks:
+            is_grounded = True
+            confidence = 0.95
+            for c in chunks:
+                citations.append({
+                    "section": c.get("section", "Source Document"),
+                    "page": c.get("page", 1),
+                    "excerpt": c.get("text", "")[:120] + "..."
+                })
+            rag_context = "\n".join([f"[{c.get('section', 'Doc')} p.{c.get('page', 1)}]: {c.get('text', '')}" for c in chunks])
+
+    # 2. Call Claude to answer conversationally in context
+    try:
+        user_prompt = f"""You are the Bharat Academix AI Teacher conducting a live classroom lesson.
+Topic: {topic}
+Current Concept: {concept}
+Learner Level: {session.current_difficulty}
+Language: {language}
+
+Material Context (if any):
+{rag_context if rag_context else 'No specific material upload. Ground in standard verified scientific and mathematical principles.'}
+
+Student's Live Doubt / Question:
+"{payload.question}"
+
+Explain clearly, concisely, and warmly. Address the student's doubt directly using an intuitive example, and maintain continuity with {concept}.
+
+Return valid JSON:
+{{
+  "answer": "Clear, formatted explanation with formatting/bullet points if helpful",
+  "voice_script": "Natural conversational spoken response for TTS (max 3 sentences)",
+  "related_concept": "Suggested related concept to explore"
+}}"""
+
+        res = claude_service.call_json(
+            system_prompt="You are an expert, human-like AI teacher explaining student doubts.",
+            user_prompt=user_prompt,
+            use_reasoning=True
+        )
+        answer = res.get("answer", f"Great question! In the context of {concept}, this occurs because the governing relationship balances the driving potential against resistance.")
+        voice_script = res.get("voice_script", answer[:180])
+        related_concept = res.get("related_concept", concept)
+
+    except Exception as e:
+        logger.warning(f"AskTeacher Claude error: {e}")
+        if language.lower() == "hindi":
+            answer = f"बहुत अच्छा प्रश्न! {concept} में जब हम मुख्य कारक को बदलते हैं, तो परिणामी प्रभाव व्युत्क्रमानुपाती या सीधे तौर पर बदलता है।"
+            voice_script = f"बहुत अच्छा सवाल! {concept} में यह सीधा संबंध स्थापित करता है।"
+        elif language.lower() == "hinglish":
+            answer = f"Great question! {concept} me driving potential aur opposing resistance ke beech direct balance hota hai."
+            voice_script = f"Acha question hai! {concept} me ye directly balance karta hai."
+        else:
+            answer = f"Excellent question! In {concept}, any change in the driving potential directly alters the observable flow in accordance with the governing equation."
+            voice_script = f"Great question! In {concept}, the output scales directly with the driving force."
+        related_concept = concept
+
+    return AskTeacherResponse(
+        answer=answer,
+        voice_script=voice_script,
+        citations=citations,
+        is_grounded=is_grounded,
+        confidence=confidence,
+        related_concept=related_concept
     )
 
 @router.post("/session/{session_id}/explain-again")

@@ -23,7 +23,7 @@ export interface LearnerProfile {
   student_id: string;
   level: string;
   existing_knowledge?: string;
-  objective?: string;
+  objective: string;
   language: string;
   style: string;
   available_time: string;
@@ -79,6 +79,14 @@ export interface Lesson {
   plan?: LessonPlan;
 }
 
+export interface Citation {
+  section_ref?: string;
+  section?: string;
+  page_number?: number;
+  page?: number;
+  excerpt: string;
+}
+
 export interface SessionSegment {
   id: string;
   session_id: string;
@@ -90,7 +98,7 @@ export interface SessionSegment {
   visual_spec: Record<string, any>;
   video_job_id?: string;
   audio_ref?: string;
-  source_citations: Array<{ section_ref: string; page_number?: number; excerpt: string }>;
+  source_citations: Citation[];
   retry_count: number;
   is_mastered: boolean;
   status: string;
@@ -102,6 +110,9 @@ export interface Question {
   session_id: string;
   segment_id?: string;
   type: "mcq" | "short_answer" | "problem_solving" | "own_words";
+  difficulty?: string;
+  is_adaptive_followup?: boolean;
+  target_misconception?: string;
   prompt: string;
   options?: string[];
   explanation_hint?: string;
@@ -114,9 +125,10 @@ export interface EvaluationResponse {
   correct: boolean;
   confidence: number;
   notes: string;
-  misconception?: {
-    description: string;
-    root_cause: string;
+  feedback?: string;
+  misconception?: string | {
+    description?: string;
+    root_cause?: string;
     misconception_category?: string;
   };
   adaptation_decision?: {
@@ -126,22 +138,62 @@ export interface EvaluationResponse {
   };
   new_explanation?: string;
   new_question?: {
+    id?: string;
     type: string;
     prompt: string;
     options?: string[];
-    answer_key: string;
+    answer_key?: string;
     explanation_hint?: string;
   };
+  current_difficulty?: string;
+  is_mastered?: boolean;
   is_session_advanced: boolean;
   evaluated_at: string;
+}
+
+export interface VideoSceneMetadata {
+  scene_index: number;
+  title: string;
+  start_time: number;
+  end_time: number;
+  duration_seconds: number;
+  visual_type: string;
+}
+
+export interface VideoJobResponse {
+  job_id: string;
+  session_id?: string;
+  status: string;
+  video_url?: string;
+  audio_url?: string;
+  file_size_bytes?: number;
+  total_duration_seconds?: number;
+  scenes?: VideoSceneMetadata[];
+  captions?: any[];
+  mode: string;
+}
+
+export interface AskTeacherResponse {
+  answer: string;
+  voice_script: string;
+  citations: Citation[];
+  is_grounded: boolean;
+  confidence: number;
+  related_concept?: string;
 }
 
 export interface LessonSession {
   id: string;
   lesson_id: string;
+  lesson?: Lesson;
   status: "in_progress" | "assessment" | "completed";
   current_step: number;
+  current_difficulty: string;
+  consecutive_correct: number;
+  consecutive_incorrect: number;
   language: string;
+  video_url?: string;
+  video_scenes?: VideoSceneMetadata[];
   started_at: string;
   completed_at?: string;
   updated_at: string;
@@ -182,144 +234,226 @@ export interface LearningReport {
   detailed_breakdown: Array<{
     question_id: string;
     prompt: string;
-    concept: string;
     student_answer: string;
     correct_answer: string;
     is_correct: boolean;
+    concept: string;
   }>;
   created_at: string;
 }
 
-// API Helper functions
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  try {
-    const res = await fetch(url, { ...options, headers });
-    if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(errorBody.detail || `Request failed with status ${res.status}`);
-    }
-    return (await res.json()) as T;
-  } catch (err: any) {
-    console.error(`API Error on ${endpoint}:`, err);
-    throw err;
-  }
-}
-
 export const api = {
-  // Profiles
-  getDefaultStudent: () => request<StudentProfile>("/students/default"),
-  getStudentProfile: (id: string) => request<StudentProfile>(`/students/${id}/profile`),
-  updateStudentProfile: (id: string, data: Partial<StudentProfile>) =>
-    request<StudentProfile>(`/students/${id}/profile`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-  createLearnerProfile: (data: Partial<LearnerProfile>) =>
-    request<LearnerProfile>("/learner-profile", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  // Student Profile
+  async getDefaultStudent(): Promise<StudentProfile> {
+    const res = await fetch(`${API_BASE}/students/default`);
+    if (!res.ok) throw new Error("Failed to get default student");
+    return res.json();
+  },
 
-  // Materials
-  uploadMaterial: async (file: File, studentId?: string): Promise<Material> => {
+  async updateStudentProfile(id: string, updates: Partial<StudentProfile>): Promise<StudentProfile> {
+    const res = await fetch(`${API_BASE}/students/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error("Failed to update student profile");
+    return res.json();
+  },
+
+  // Material Ingestion
+  async uploadMaterial(file: File, studentId?: string): Promise<Material> {
+    let sId = studentId;
+    if (!sId) {
+      const std = await api.getDefaultStudent();
+      sId = std.id;
+    }
     const formData = new FormData();
     formData.append("file", file);
-    if (studentId) formData.append("student_id", studentId);
+    formData.append("student_id", sId);
 
     const res = await fetch(`${API_BASE}/materials/upload`, {
       method: "POST",
       body: formData,
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: "Upload failed" }));
-      throw new Error(err.detail || "File upload failed");
-    }
+    if (!res.ok) throw new Error("Failed to upload material");
     return res.json();
   },
-  getMaterial: (id: string) => request<Material>(`/materials/${id}`),
 
-  // Content Analysis
-  analyzeContent: (materialId?: string, topic?: string, profileId?: string) =>
-    request<{ job_id: string; status: string; stage: string }>("/content/analyze", {
+  async getMaterial(materialId: string): Promise<Material> {
+    const res = await fetch(`${API_BASE}/materials/${materialId}`);
+    if (!res.ok) throw new Error("Failed to get material");
+    return res.json();
+  },
+
+  async analyzeContent(payload: { material_id?: string; topic?: string; profile_id?: string }) {
+    const res = await fetch(`${API_BASE}/content/analyze`, {
       method: "POST",
-      body: JSON.stringify({ material_id: materialId, topic, profile_id: profileId }),
-    }),
-  getAnalysisStatus: (jobId: string) =>
-    request<{
-      job_id: string;
-      status: string;
-      stage: string;
-      progress: number;
-      details?: string;
-      summary?: any;
-    }>(`/content/analyze/${jobId}/status`),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to start content analysis");
+    return res.json();
+  },
+
+  async getContentAnalysisStatus(jobId: string) {
+    const res = await fetch(`${API_BASE}/content/analysis/${jobId}`);
+    if (!res.ok) throw new Error("Failed to get analysis status");
+    return res.json();
+  },
+
+  async getAnalysisStatus(jobId: string) {
+    return this.getContentAnalysisStatus(jobId);
+  },
 
   // Lessons
-  listLessons: (studentId?: string) =>
-    request<Lesson[]>(`/lessons${studentId ? `?student_id=${studentId}` : ""}`),
-  getLesson: (id: string) => request<Lesson>(`/lessons/${id}`),
-  generateLesson: (data: {
+  async listLessons(studentId?: string): Promise<Lesson[]> {
+    const url = studentId ? `${API_BASE}/lessons?student_id=${studentId}` : `${API_BASE}/lessons`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async generateLesson(payload: {
     student_id?: string;
     source_type: "material" | "topic";
     material_id?: string;
     topic?: string;
-    profile_id: string;
-  }) =>
-    request<Lesson>("/lessons/generate", {
+    level?: string;
+    existing_knowledge?: string;
+    objective?: string;
+    language?: string;
+    style?: string;
+    available_time?: string;
+    depth?: string;
+    profile_id?: string;
+  }): Promise<Lesson> {
+    const res = await fetch(`${API_BASE}/lessons/generate`, {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
-  updateLessonPlan: (id: string, data: { segments?: LessonPlanSegment[]; status?: string }) =>
-    request<Lesson>(`/lessons/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to generate lesson");
+    return res.json();
+  },
 
-  // Sessions
-  createSession: (lessonId: string) =>
-    request<LessonSession>("/session/create", {
+  async getLesson(id: string): Promise<Lesson> {
+    const res = await fetch(`${API_BASE}/lessons/${id}`);
+    if (!res.ok) throw new Error("Failed to get lesson");
+    return res.json();
+  },
+
+  async updateLessonPlan(lessonId: string, segments: LessonPlanSegment[]): Promise<LessonPlan> {
+    const res = await fetch(`${API_BASE}/lessons/${lessonId}/plan`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segments }),
+    });
+    if (!res.ok) throw new Error("Failed to update lesson plan");
+    return res.json();
+  },
+
+  // Interactive Sessions & Teaching Loop
+  async createSession(lessonId: string): Promise<LessonSession> {
+    const res = await fetch(`${API_BASE}/session/create`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lesson_id: lessonId }),
-    }),
-  getSession: (id: string) => request<LessonSession>(`/session/${id}`),
-  updateSession: (id: string, data: { language?: string; status?: string; current_step?: number }) =>
-    request<LessonSession>(`/session/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-  nextSegment: (sessionId: string) =>
-    request<LessonSession>(`/session/${sessionId}/next-segment`, {
-      method: "POST",
-    }),
-  explainAgain: (sessionId: string, focus?: string) =>
-    request<{ status: string; new_explanation: string; retry_count: number }>(
-      `/session/${sessionId}/explain-again`,
-      {
-        method: "POST",
-        body: JSON.stringify({ focus }),
-      }
-    ),
-  submitAnswer: (sessionId: string, questionId: string, responseText: string, isUnsure: boolean = false) =>
-    request<EvaluationResponse>(`/session/${sessionId}/answer`, {
-      method: "POST",
-      body: JSON.stringify({ question_id: questionId, response_text: responseText, is_unsure: isUnsure }),
-    }),
+    });
+    if (!res.ok) throw new Error("Failed to create session");
+    return res.json();
+  },
 
-  // Assessment & Reports
-  generateAssessment: (sessionId: string) =>
-    request<Assessment>(`/session/${sessionId}/assessment/generate`, {
+  async getSession(sessionId: string): Promise<LessonSession> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}`);
+    if (!res.ok) throw new Error("Failed to get session");
+    return res.json();
+  },
+
+  async updateSession(sessionId: string, updates: { language?: string; status?: string; current_step?: number; current_difficulty?: string }): Promise<LessonSession> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error("Failed to update session");
+    return res.json();
+  },
+
+  async submitAnswer(sessionId: string, questionId: string, responseText: string, isUnsure: boolean = false): Promise<EvaluationResponse> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/answer`, {
       method: "POST",
-    }),
-  submitAssessment: (sessionId: string, answers: Record<string, string>) =>
-    request<Assessment>(`/session/${sessionId}/assessment/submit`, {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question_id: questionId,
+        response_text: responseText,
+        is_unsure: isUnsure,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to submit answer");
+    return res.json();
+  },
+
+  async explainAgain(sessionId: string, focus?: string): Promise<{ status: string; new_explanation: string; retry_count: number }> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/explain-again`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ focus }),
+    });
+    if (!res.ok) throw new Error("Failed to request re-explanation");
+    return res.json();
+  },
+
+  async askTeacher(sessionId: string, question: string): Promise<AskTeacherResponse> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) throw new Error("Failed to ask teacher");
+    return res.json();
+  },
+
+  async nextSegment(sessionId: string): Promise<LessonSession> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/next-segment`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to advance segment");
+    return res.json();
+  },
+
+  // Video Generation Engine
+  async generateVideo(payload: { session_id?: string; lesson_topic?: string; language?: string }): Promise<VideoJobResponse> {
+    const res = await fetch(`${API_BASE}/video/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to generate video");
+    return res.json();
+  },
+
+  // Assessment & Report
+  async generateAssessment(sessionId: string): Promise<Assessment> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/assessment/generate`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to generate assessment");
+    return res.json();
+  },
+
+  async submitAssessment(sessionId: string, answers: Record<string, string>): Promise<Assessment> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/assessment/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answers }),
-    }),
-  getReport: (sessionId: string) => request<LearningReport>(`/session/${sessionId}/report`),
+    });
+    if (!res.ok) throw new Error("Failed to submit assessment");
+    return res.json();
+  },
+
+  async getReport(sessionId: string): Promise<LearningReport> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/report`);
+    if (!res.ok) throw new Error("Failed to get learning report");
+    return res.json();
+  },
 };

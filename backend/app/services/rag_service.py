@@ -15,9 +15,18 @@ logger = logging.getLogger(__name__)
 
 class ResilientEmbeddingFunction(EmbeddingFunction[Documents]):
     """
-    Deterministic dense 384-dimensional semantic embedding function.
-    Guarantees 100% offline, zero-hang, instantaneous execution for RAG retrieval.
+    Deterministic dense 384-dimensional fallback embedding function.
+    Guarantees 100% offline, zero-hang execution for air-gapped test environments.
     """
+    def __init__(self):
+        pass
+
+    def name(self) -> str:
+        return "resilient-offline-fallback"
+
+    def get_config(self) -> Dict[str, Any]:
+        return {"name": self.name()}
+
     def __call__(self, input: Documents) -> Embeddings:
         embeddings: Embeddings = []
         for doc in input:
@@ -34,6 +43,49 @@ class ResilientEmbeddingFunction(EmbeddingFunction[Documents]):
             embeddings.append(vec.tolist())
         return embeddings
 
+class MiniLMEmbeddingFunction(EmbeddingFunction[Documents]):
+    """
+    Production dense 384-dimensional semantic embedding function powered by
+    sentence-transformers/all-MiniLM-L6-v2 with lazy initialization and air-gap fallback.
+    """
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        self.model_name = model_name
+        self._model = None
+        self._fallback_fn = ResilientEmbeddingFunction()
+
+    def name(self) -> str:
+        return self.model_name
+
+    def get_config(self) -> Dict[str, Any]:
+        return {"name": self.name(), "model_name": self.model_name}
+
+    def _get_model(self):
+        if self._model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+                # Try loading cached local model weights if available
+                self._model = SentenceTransformer(self.model_name, local_files_only=True)
+            except Exception as e:
+                logger.info(
+                    f"SentenceTransformer not cached locally ({e}). "
+                    f"Operating with deterministic ResilientEmbeddingFunction for instant air-gap execution."
+                )
+                self._model = False
+        return self._model
+
+    def __call__(self, input: Documents) -> Embeddings:
+        if not input:
+            return []
+        try:
+            model = self._get_model()
+            if model and model is not False:
+                embeddings = model.encode(list(input), normalize_embeddings=True)
+                return embeddings.tolist()
+        except Exception as e:
+            logger.warning(f"Error encoding with MiniLM ({e}), using deterministic vectorizer.")
+        
+        return self._fallback_fn(input)
+
 class RAGService:
     def __init__(self):
         self.persist_dir = settings.CHROMA_PERSIST_DIRECTORY
@@ -42,8 +94,10 @@ class RAGService:
         # Initialize persistent Chroma client
         self.client = chromadb.PersistentClient(path=self.persist_dir)
         
-        # Resilient embedding function
-        self.embedding_fn = ResilientEmbeddingFunction()
+        # Initialize semantic embeddings function with air-gapped fallback
+        model_name = getattr(settings, "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+        self.embedding_fn = MiniLMEmbeddingFunction(model_name=model_name)
+        logger.info(f"RAG Service initialized with semantic embeddings: {model_name}")
 
     def get_or_create_collection(self, material_id: str):
         collection_name = f"mat_{material_id.replace('-', '_')}"
@@ -71,10 +125,9 @@ class RAGService:
                         })
             except Exception as e:
                 logger.error(f"Error reading PDF {file_path}: {e}")
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    chunks_raw.append({"text": f.read(), "page_number": 1, "section_ref": "Document"})
+                raise ValueError(f"Failed to extract readable text from PDF: {e}")
 
-        elif file_ext in ["doc", "docx"]:
+        elif file_ext == "docx":
             try:
                 import docx
                 doc = docx.Document(file_path)
@@ -103,10 +156,9 @@ class RAGService:
                     })
             except Exception as e:
                 logger.error(f"Error reading DOCX {file_path}: {e}")
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    chunks_raw.append({"text": f.read(), "page_number": 1, "section_ref": "Document"})
+                raise ValueError(f"Failed to extract readable text from DOCX: {e}")
 
-        elif file_ext in ["ppt", "pptx"]:
+        elif file_ext == "pptx":
             try:
                 from pptx import Presentation
                 prs = Presentation(file_path)
@@ -127,11 +179,10 @@ class RAGService:
                         })
             except Exception as e:
                 logger.error(f"Error reading PPTX {file_path}: {e}")
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    chunks_raw.append({"text": f.read(), "page_number": 1, "section_ref": "Presentation"})
+                raise ValueError(f"Failed to extract readable text from PPTX: {e}")
 
-        else:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        elif file_ext in ["txt", "md"]:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
                 sections = re.split(r'\n(?=#{1,3}\s)', content)
                 for idx, sec in enumerate(sections, 1):
@@ -143,6 +194,11 @@ class RAGService:
                             "page_number": 1,
                             "section_ref": section_name
                         })
+
+        else:
+            raise ValueError(
+                f"Unsupported file format '{file_ext}'. Please upload standard .pdf, .docx, .pptx, .txt, or .md files."
+            )
 
         return chunks_raw
 

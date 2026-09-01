@@ -10,7 +10,8 @@ from app.schemas import MaterialResponse
 
 router = APIRouter(tags=["Materials"])
 
-ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".md"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".txt", ".md"}
+LEGACY_UNSUPPORTED = {".doc", ".ppt"}
 
 @router.post("/materials/upload", response_model=MaterialResponse)
 async def upload_material(
@@ -29,10 +30,15 @@ async def upload_material(
     
     # Check extension
     file_ext = Path(file.filename).suffix.lower()
+    if file_ext in LEGACY_UNSUPPORTED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Legacy binary format '{file_ext}' is not supported. Please upload modern .docx or .pptx files."
+        )
     if file_ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file format '{file_ext}'. Allowed formats: {', '.join(ALLOWED_EXTENSIONS)}"
+            detail=f"Unsupported file format '{file_ext}'. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
         
     material_id = str(Path(file.filename).stem)

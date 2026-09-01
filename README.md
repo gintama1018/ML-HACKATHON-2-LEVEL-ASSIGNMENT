@@ -2,10 +2,11 @@
 
 An autonomous, human-like AI Teacher platform that delivers personalized, pacing-conscious multimodal lessons with adaptive real-time remediation, interactive whiteboards, RAG knowledge grounding, dual-mode 720p educational video synthesis, and multilingual voice synthesis.
 
-![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?logo=next.js)
+![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016.3.3-black?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi)
 ![LLM Dual Support](https://img.shields.io/badge/LLM-Anthropic%20Claude%20%2F%20Google%20Gemini-6B4FBB)
-![ChromaDB](https://img.shields.io/badge/VectorStore-ChromaDB%20Persistent-orange)
+![Embeddings](https://img.shields.io/badge/Embeddings-Sentence--Transformers%20all--MiniLM--L6--v2-blue)
+![VectorStore](https://img.shields.io/badge/VectorStore-ChromaDB%20Persistent-orange)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
@@ -290,15 +291,15 @@ The interactive Whiteboard (`Whiteboard.tsx`) dynamically renders subject-specif
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Frontend Framework** | Next.js 14 (App Router) | High-performance React server and client components |
+| **Frontend Framework** | Next.js 16.3.3 (App Router) | High-performance React server and client components |
 | **Language & Types** | TypeScript 5 | Strict static typing across API payloads and UI states |
 | **Styling & Design** | TailwindCSS | Digital Gurukul design tokens with responsive utilities |
 | **Icons & Visuals** | Lucide React + Canvas Confetti | Clean iconography and assessment celebration effects |
 | **Backend API** | FastAPI 0.115 (Python 3.11+) | Async REST API framework with automatic OpenAPI docs |
 | **ORM & Database** | SQLAlchemy 2.0 + SQLite | Relational database schema with **15 tracked entities** |
 | **Vector Database** | ChromaDB (Persistent) | Local on-disk embedding storage for document RAG |
-| **Embeddings** | Dense 384-dim semantic embedding | Fast, 100% offline-resilient embeddings |
-| **Video Engine** | PIL + gTTS + pyttsx3 + imageio-ffmpeg | Programmatic 720p H.264 educational MP4 synthesis |
+| **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` | Dense 384-dim semantic embeddings with offline fallback |
+| **Video Engine** | PIL + gTTS + pyttsx3 + imageio-ffmpeg | Programmatic 15fps 720p H.264 educational MP4 synthesis |
 | **LLM Dual Engine** | Anthropic Claude & Google Gemini API | `claude-sonnet-5` / `gemini-2.5-pro` & `claude-haiku` / `gemini-2.5-flash` |
 
 ---

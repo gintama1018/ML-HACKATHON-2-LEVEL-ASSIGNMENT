@@ -14,7 +14,7 @@ class VideoGeneratorService:
     def __init__(self, output_dir: str = "./static/videos"):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        self.fps = 12
+        self.fps = 15
         self.width = 1280
         self.height = 720
 
@@ -32,11 +32,10 @@ class VideoGeneratorService:
 
     def generate_audio(self, text: str, language: str, output_path: str) -> float:
         """
-        Multi-tier resilient audio generation:
-        Tier 1: Cloud gTTS with retry
-        Tier 2: Local pyttsx3 speech engine (if speech system is available)
+        Multi-tier resilient audio generation with smart sentence chunking:
+        Tier 1: Cloud gTTS with sentence chunking & FFmpeg seamless audio concatenation
+        Tier 2: Local pyttsx3 speech engine
         Tier 3: Valid emergency MP3 synthesis via libmp3lame
-        Guarantees that video rendering receives a valid, readable audio stream.
         """
         clean_text = text.replace("*", "").replace("#", "").replace("`", "").strip()
         if not clean_text:
@@ -49,21 +48,85 @@ class VideoGeneratorService:
         # Map language codes
         lang_code = "en"
         tld = "co.in"
-        if "hindi" in language.lower() or language.lower() == "hi":
+        lang_lower = language.lower()
+        if "hindi" in lang_lower or lang_lower == "hi":
             lang_code = "hi"
             tld = "com"
-        elif "hinglish" in language.lower():
+        elif "tamil" in lang_lower or lang_lower == "ta":
+            lang_code = "ta"
+            tld = "co.in"
+        elif "bengali" in lang_lower or lang_lower == "bn":
+            lang_code = "bn"
+            tld = "co.in"
+        elif "marathi" in lang_lower or lang_lower == "mr":
+            lang_code = "mr"
+            tld = "co.in"
+        elif "hinglish" in lang_lower:
             lang_code = "en"
             tld = "co.in"
 
         audio_generated = False
 
-        # Tier 1: gTTS Cloud Synthesis
+        # Tier 1: gTTS Cloud Synthesis with sentence-level chunking for scripts > 250 chars
         try:
-            tts = gTTS(text=clean_text[:400], lang=lang_code, tld=tld, slow=False)
-            tts.save(output_path)
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                audio_generated = True
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?।\n])\s+', clean_text) if s.strip()]
+            if not sentences:
+                sentences = [clean_text]
+
+            # Group into chunks under 300 characters
+            chunks = []
+            cur_chunk = ""
+            for s in sentences:
+                if len(cur_chunk) + len(s) + 1 <= 300:
+                    cur_chunk = f"{cur_chunk} {s}".strip()
+                else:
+                    if cur_chunk:
+                        chunks.append(cur_chunk)
+                    cur_chunk = s[:300]
+            if cur_chunk:
+                chunks.append(cur_chunk)
+
+            if len(chunks) == 1:
+                tts = gTTS(text=chunks[0], lang=lang_code, tld=tld, slow=False, timeout=2.5)
+                tts.save(output_path)
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                    audio_generated = True
+            elif len(chunks) > 1:
+                chunk_files = []
+                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+                for i, c in enumerate(chunks):
+                    temp_chunk_mp3 = output_path.replace(".mp3", f"_part_{i}.mp3")
+                    tts = gTTS(text=c, lang=lang_code, tld=tld, slow=False, timeout=2.5)
+                    tts.save(temp_chunk_mp3)
+                    if os.path.exists(temp_chunk_mp3) and os.path.getsize(temp_chunk_mp3) > 500:
+                        chunk_files.append(temp_chunk_mp3)
+
+                if chunk_files:
+                    # Write concat manifest
+                    manifest_path = output_path.replace(".mp3", "_concat.txt")
+                    with open(manifest_path, "w", encoding="utf-8") as mf:
+                        for cf in chunk_files:
+                            clean_cf = cf.replace("\\", "/")
+                            mf.write(f"file '{clean_cf}'\n")
+
+                    subprocess.run([
+                        ffmpeg_exe, "-y", "-f", "concat", "-safe", "0",
+                        "-i", manifest_path, "-c", "copy", output_path
+                    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+                    if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                        audio_generated = True
+
+                    # Clean up temporary parts
+                    for cf in chunk_files:
+                        try:
+                            os.remove(cf)
+                        except Exception:
+                            pass
+                    try:
+                        os.remove(manifest_path)
+                    except Exception:
+                        pass
         except Exception as e:
             logger.warning(f"Tier 1 (gTTS) unavailable: {e}. Attempting local engine.")
 
@@ -76,7 +139,6 @@ class VideoGeneratorService:
                 engine.save_to_file(clean_text, temp_wav)
                 engine.runAndWait()
                 if os.path.exists(temp_wav) and os.path.getsize(temp_wav) > 1000:
-                    # Convert WAV to standard MP3 with libmp3lame
                     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
                     subprocess.run([
                         ffmpeg_exe, "-y", "-i", temp_wav,
@@ -117,51 +179,82 @@ class VideoGeneratorService:
             return estimated_duration
 
     def _draw_avatar(self, draw: ImageDraw.ImageDraw, is_speaking: bool, frame_idx: int):
-        """Draw animated teacher avatar with suit, glasses, and lip-sync mouth motion."""
-        cx, cy = 230, 310
+        """Draw high-fidelity animated teacher avatar with realistic skin shading, breathing sway, and visemes."""
+        # Subtle idle breathing / micro-saccades
+        sway_y = int(math.sin(frame_idx / 8.0) * 3)
+        sway_x = int(math.cos(frame_idx / 16.0) * 1.5)
+        cx, cy = 230 + sway_x, 310 + sway_y
+
         # Background avatar card
         draw.rounded_rectangle([40, 100, 420, 580], radius=16, fill=(15, 23, 42), outline=(51, 65, 85), width=2)
         
-        # Avatar status badge
-        status_text = "• AI TEACHER (EXPLAINING)" if is_speaking else "• AI TEACHER (LISTENING)"
+        # Avatar status badge with animated pulse
+        status_text = "• AI TEACHER (SPEAKING)" if is_speaking else "• AI TEACHER (LISTENING)"
         badge_color = (16, 185, 129) if is_speaking else (148, 163, 184)
         draw.text((60, 115), status_text, fill=badge_color, font=self._get_font(12, bold=True))
 
-        # Academic Suit & Tie
-        draw.polygon([(cx - 110, cy + 220), (cx - 70, cy + 100), (cx + 70, cy + 100), (cx + 110, cy + 220)], fill=(30, 41, 59))
-        draw.polygon([(cx - 30, cy + 100), (cx + 30, cy + 100), (cx, cy + 160)], fill=(241, 245, 249))
-        draw.polygon([(cx - 10, cy + 115), (cx + 10, cy + 115), (cx, cy + 190)], fill=(16, 185, 129))
+        # Academic Suit & Layered Blazer
+        draw.polygon([(cx - 115, cy + 220), (cx - 75, cy + 100), (cx + 75, cy + 100), (cx + 115, cy + 220)], fill=(30, 41, 59))
+        draw.polygon([(cx - 75, cy + 100), (cx - 35, cy + 150), (cx - 30, cy + 100)], fill=(45, 55, 75))
+        draw.polygon([(cx + 75, cy + 100), (cx + 35, cy + 150), (cx + 30, cy + 100)], fill=(45, 55, 75))
+        
+        # Shirt Collar & Emerald Tie
+        draw.polygon([(cx - 32, cy + 98), (cx + 32, cy + 98), (cx, cy + 165)], fill=(248, 250, 252))
+        draw.polygon([(cx - 11, cy + 112), (cx + 11, cy + 112), (cx, cy + 200)], fill=(16, 185, 129))
+        draw.polygon([(cx - 8, cy + 112), (cx + 8, cy + 112), (cx, cy + 130)], fill=(4, 120, 87))
 
-        # Neck & Head
-        draw.rectangle([cx - 20, cy + 70, cx + 20, cy + 105], fill=(253, 224, 71))
-        draw.ellipse([cx - 65, cy - 70, cx + 65, cy + 70], fill=(254, 240, 138), outline=(234, 179, 8), width=2)
+        # Neck & Shadow
+        draw.rectangle([cx - 20, cy + 65, cx + 20, cy + 105], fill=(226, 185, 150))
+        draw.rectangle([cx - 18, cy + 70, cx + 18, cy + 102], fill=(246, 210, 180))
 
-        # Hair
-        draw.pieslice([cx - 70, cy - 80, cx + 70, cy + 20], 180, 360, fill=(30, 27, 75))
+        # Head & Natural Warm Skin
+        draw.ellipse([cx - 66, cy - 72, cx + 66, cy + 70], fill=(226, 185, 150))
+        draw.ellipse([cx - 64, cy - 70, cx + 64, cy + 68], fill=(246, 210, 180))
 
-        # Glasses
-        draw.rounded_rectangle([cx - 50, cy - 20, cx - 10, cy + 12], radius=4, outline=(79, 70, 229), width=3)
-        draw.rounded_rectangle([cx + 10, cy - 20, cx + 50, cy + 12], radius=4, outline=(79, 70, 229), width=3)
-        draw.line([(cx - 10, cy - 4), (cx + 10, cy - 4)], fill=(79, 70, 229), width=3)
+        # Hair (Rich dark indigo waves)
+        draw.pieslice([cx - 70, cy - 82, cx + 70, cy + 18], 180, 360, fill=(30, 27, 75))
+        draw.arc([cx - 68, cy - 80, cx + 68, cy + 10], 200, 340, fill=(49, 46, 129), width=4)
 
-        # Eyes (with natural periodic blinks)
-        is_blinking = (frame_idx % 36 in [34, 35])
+        # Glasses (Modern indigo wireframes)
+        draw.rounded_rectangle([cx - 52, cy - 22, cx - 12, cy + 12], radius=5, outline=(79, 70, 229), width=3)
+        draw.rounded_rectangle([cx + 12, cy - 22, cx + 52, cy + 12], radius=5, outline=(79, 70, 229), width=3)
+        draw.line([(cx - 12, cy - 5), (cx + 12, cy - 5)], fill=(79, 70, 229), width=3)
+        # Lens glint
+        draw.line([(cx - 45, cy - 16), (cx - 35, cy - 16)], fill=(199, 210, 254), width=1)
+        draw.line([(cx + 19, cy - 16), (cx + 29, cy - 16)], fill=(199, 210, 254), width=1)
+
+        # Eyes & Blinking
+        is_blinking = (frame_idx % 48 in [45, 46])
         if is_blinking:
-            draw.line([(cx - 35, cy - 5), (cx - 25, cy - 5)], fill=(15, 23, 42), width=2)
-            draw.line([(cx + 25, cy - 5), (cx + 35, cy - 5)], fill=(15, 23, 42), width=2)
+            draw.line([(cx - 36, cy - 5), (cx - 24, cy - 5)], fill=(15, 23, 42), width=3)
+            draw.line([(cx + 24, cy - 5), (cx + 36, cy - 5)], fill=(15, 23, 42), width=3)
         else:
-            draw.ellipse([cx - 35, cy - 10, cx - 25, cy], fill=(15, 23, 42))
-            draw.ellipse([cx + 25, cy - 10, cx + 35, cy], fill=(15, 23, 42))
+            # Sclera
+            draw.ellipse([cx - 38, cy - 12, cx - 22, cy + 2], fill=(255, 255, 255))
+            draw.ellipse([cx + 22, cy - 12, cx + 38, cy + 2], fill=(255, 255, 255))
+            # Pupil / Iris
+            draw.ellipse([cx - 33, cy - 9, cx - 25, cy - 1], fill=(30, 27, 75))
+            draw.ellipse([cx + 27, cy - 9, cx + 35, cy - 1], fill=(30, 27, 75))
+            # Catchlight
+            draw.ellipse([cx - 31, cy - 8, cx - 28, cy - 5], fill=(255, 255, 255))
+            draw.ellipse([cx + 29, cy - 8, cx + 32, cy - 5], fill=(255, 255, 255))
 
-        # Animated Mouth
-        mouth_open = is_speaking and (frame_idx % 4 in [1, 2])
-        if mouth_open:
-            draw.ellipse([cx - 16, cy + 28, cx + 16, cy + 46], fill=(159, 18, 57))
-            draw.line([(cx - 10, cy + 33), (cx + 10, cy + 33)], fill=(255, 255, 255), width=2)
+        # Viseme-based Mouth Animation
+        if is_speaking:
+            mouth_phase = frame_idx % 6
+            if mouth_phase in [1, 2]: # Wide vowel opening
+                draw.ellipse([cx - 18, cy + 26, cx + 18, cy + 46], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
+                draw.rectangle([cx - 10, cy + 28, cx + 10, cy + 32], fill=(255, 255, 255)) # Teeth
+                draw.ellipse([cx - 8, cy + 39, cx + 8, cy + 44], fill=(244, 63, 94)) # Tongue
+            elif mouth_phase in [3, 4]: # Narrow vowel opening
+                draw.ellipse([cx - 12, cy + 28, cx + 12, cy + 42], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
+                draw.rectangle([cx - 6, cy + 30, cx + 6, cy + 33], fill=(255, 255, 255))
+            else: # Semi-closed transition
+                draw.arc([cx - 16, cy + 28, cx + 16, cy + 38], 10, 170, fill=(159, 18, 57), width=3)
         else:
-            draw.arc([cx - 18, cy + 25, cx + 18, cy + 40], 20, 160, fill=(159, 18, 57), width=3)
+            draw.arc([cx - 16, cy + 28, cx + 16, cy + 38], 15, 165, fill=(159, 18, 57), width=3)
 
-        # Branding badge
+        # Academic Gurukul Badge
         draw.rounded_rectangle([60, 520, 400, 560], radius=8, fill=(30, 41, 59))
         draw.text((80, 532), "Bharat Academix • Autonomous Gurukul", fill=(203, 213, 225), font=self._get_font(12))
 

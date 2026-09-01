@@ -48,12 +48,12 @@ class UnifiedLLMService:
         return bool(self.anthropic_client or self.gemini_configured)
 
     def _call_gemini(self, model_name: str, system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
-        """Call Google Gemini API with system instructions"""
+        """Call Google Gemini API with system instructions and generous token budget"""
         try:
             model = genai.GenerativeModel(
                 model_name=model_name,
                 system_instruction=system_prompt,
-                generation_config={"temperature": temperature}
+                generation_config={"temperature": temperature, "max_output_tokens": 8192}
             )
             response = model.generate_content(user_prompt)
             return response.text
@@ -63,7 +63,7 @@ class UnifiedLLMService:
                 model = genai.GenerativeModel(
                     model_name=self.gemini_fast_model,
                     system_instruction=system_prompt,
-                    generation_config={"temperature": temperature}
+                    generation_config={"temperature": temperature, "max_output_tokens": 8192}
                 )
                 response = model.generate_content(user_prompt)
                 return response.text

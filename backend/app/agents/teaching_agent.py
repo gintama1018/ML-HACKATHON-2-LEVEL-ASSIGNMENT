@@ -47,18 +47,29 @@ def teach_concept(
 
     target_lang = language_override or (profile.language if profile else "English")
 
-    user_prompt = f"""Explain the following concept:
+    user_prompt = f"""Deliver a comprehensive, in-depth pedagogical lecture for the following concept:
 Concept: {concept}
 Learning Objective: {learning_objective}
 
 Learner Profile:
-- Level: {profile.level if profile else 'Beginner'}
+- Level: {profile.level if profile else 'Intermediate'}
 - Language: {target_lang}
-- Preferred Style: {profile.style if profile else 'Simple & example-heavy'}
+- Preferred Style: {profile.style if profile else 'Detailed with intuitive breakdowns and practical applications'}
+- Available Time: {profile.available_time if profile else '20 min'}
+- Depth: {profile.depth if profile else 'Deep Dive'}
 - Existing Knowledge: {profile.existing_knowledge if profile else 'None'}
 {chunks_context}
 
-Deliver a compelling, pedagogically rich explanation in {target_lang}."""
+PEDAGOGICAL REQUIREMENTS:
+1. `explanation_text` MUST be a detailed, rich lecture (at least 3-4 distinct paragraphs) covering:
+   - Foundational Definition & Physical/Conceptual Intuition
+   - Step-by-Step Working Mechanics, Mathematical Relationships, or Governing Rules
+   - Real-World Engineering / Scientific Applications & Practical Scenarios
+   - Common Pitfalls, Edge Cases, and Nuances
+2. `spoken_script` MUST be a full, engaging spoken lecture (3-4 spoken paragraphs) that a real human educator would speak to the class in {target_lang}, explaining every concept clearly and warmly.
+3. Provide 3-5 high-yield `key_takeaways` and a memorable `analogy_used`.
+
+Deliver a compelling, high-quality educational lecture in {target_lang}."""
 
     result = claude_service.call_json(
         system_prompt=SYSTEM_PROMPT,

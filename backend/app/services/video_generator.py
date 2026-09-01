@@ -479,7 +479,20 @@ class VideoGeneratorService:
         if segments and len(segments) > 0:
             for idx, seg in enumerate(segments):
                 concept_name = seg.get("concept") or f"Concept {idx+1}"
-                expl_text = seg.get("explanation_text") or f"Let us examine {concept_name} in detail."
+                raw_script = seg.get("spoken_script") or seg.get("explanation_text") or f"Let us examine {concept_name} in detail."
+                # For video scenes, use crisp high-yield spoken narration sentences (up to ~350 chars) for optimal video pacing
+                if len(raw_script) > 350:
+                    sentences = [s.strip() for s in re.split(r'(?<=[.!?।\n])\s+', raw_script) if s.strip()]
+                    trimmed_script = ""
+                    for s in sentences:
+                        if len(trimmed_script) + len(s) + 1 <= 350:
+                            trimmed_script = f"{trimmed_script} {s}".strip()
+                        else:
+                            break
+                    scene_script = trimmed_script or raw_script[:350]
+                else:
+                    scene_script = raw_script
+
                 v_type = seg.get("visual_type") or "diagram"
                 v_spec = seg.get("visual_spec") or {}
                 
@@ -487,7 +500,7 @@ class VideoGeneratorService:
                     "title": f"{idx+1}. {concept_name}",
                     "visual_type": v_type,
                     "visual_spec": v_spec,
-                    "script": expl_text
+                    "script": scene_script
                 })
         else:
             # Topic-aware fallback when no segments are provided

@@ -185,19 +185,20 @@ export default function LearningPathsPage() {
                   </div>
                 </div>
 
-                {/* Compact Path Switcher (Pill Selector) */}
+                {/* Compact Path Switcher (Single-Line Compact Pill Selector) */}
                 {paths.length > 1 && (
                   <div className="pt-3 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto pb-1">
                     <span className="text-xs text-slate-400 shrink-0 font-medium">Switch Pathway:</span>
-                    <div className="flex items-center gap-2">
-                      {paths.map((p) => (
+                    <div className="flex items-center gap-1.5">
+                      {paths.map((p, idx) => (
                         <button
-                          key={p.id}
+                          key={p.id || idx}
                           onClick={() => setActivePath(p)}
-                          className={`px-4 py-1 rounded-full text-xs font-medium transition cursor-pointer interactive-tactile ${
+                          title={p.topic}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition whitespace-nowrap max-w-[180px] truncate shrink-0 cursor-pointer interactive-tactile ${
                             p.id === activePath.id
-                              ? "bg-white text-[#0f172a] font-bold shadow-xs"
-                              : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                              ? "bg-white text-[#0f172a] font-bold shadow-xs ring-1 ring-white"
+                              : "bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60"
                           }`}
                         >
                           {p.topic}

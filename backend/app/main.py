@@ -1,4 +1,6 @@
 import os
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,6 +10,43 @@ from app.database import engine, Base
 from app.routers import (
     profile, materials, content, lessons, sessions, assessment, report, video, learning_paths
 )
+
+logger = logging.getLogger(__name__)
+
+async def _llm_startup_smoke_test():
+    """Make one minimal real call to confirm the configured LLM model is live.
+    Logs WARNING on failure — does NOT crash the app so offline/dev usage still works."""
+    try:
+        from app.services.claude_service import claude_service
+        if not claude_service.is_configured():
+            logger.warning(
+                "LLM_STARTUP: No LLM API key configured — running in offline/fallback mode. "
+                "Set GEMINI_API_KEY in backend/.env to enable live AI features."
+            )
+            return
+        result = claude_service.call_fast(
+            system_prompt="You are a health-check assistant.",
+            user_prompt="Reply with the single word: ALIVE",
+            max_tokens=10
+        )
+        if result and len(result.strip()) > 0:
+            model_name = settings.GEMINI_FAST_MODEL if claude_service.gemini_configured else settings.CLAUDE_FAST_MODEL
+            logger.info(f"LLM_STARTUP: Model '{model_name}' is live and responding. ✓")
+        else:
+            logger.warning("LLM_STARTUP: Model returned empty response — check API key and quota.")
+    except Exception as exc:
+        model_name = settings.GEMINI_FAST_MODEL if settings.GEMINI_API_KEY else settings.CLAUDE_FAST_MODEL
+        logger.warning(
+            f"LLM_STARTUP: Configured model '{model_name}' is UNREACHABLE — {exc}. "
+            f"Update GEMINI_REASONING_MODEL/GEMINI_FAST_MODEL in backend/.env to a current GA model. "
+            f"The app will continue but all AI features will use offline fallback templates."
+        )
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await _llm_startup_smoke_test()
+    yield
+
 
 # Ensure static directories exist
 os.makedirs("./static/videos", exist_ok=True)
@@ -19,7 +58,8 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title=settings.APP_NAME,
     description="Autonomous, Adaptive AI Teacher Backend for Bharat Academix Challenge",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for Next.js frontend

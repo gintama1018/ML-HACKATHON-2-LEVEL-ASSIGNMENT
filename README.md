@@ -7,7 +7,7 @@ An autonomous, human-like AI Teacher platform that delivers personalized, pacing
 ![LLM Dual Support](https://img.shields.io/badge/LLM-Anthropic%20Claude%20%2F%20Google%20Gemini-6B4FBB)
 ![Embeddings](https://img.shields.io/badge/Embeddings-Sentence--Transformers%20all--MiniLM--L6--v2%20%2B%20Offline%20Fallback-blue)
 ![VectorStore](https://img.shields.io/badge/VectorStore-ChromaDB%20Persistent-orange)
-![Tests](https://img.shields.io/badge/Tests-18%2F18%20Passing%20(100%25)-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-28%2F28%20Automated%20Tests%20Passing%20(100%25)-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
@@ -73,7 +73,7 @@ Bharat Academix is an end-to-end autonomous educational engine:
 - **Repository**: [https://github.com/gintama1018/ML-HACKATHON-2-LEVEL-ASSIGNMENT](https://github.com/gintama1018/ML-HACKATHON-2-LEVEL-ASSIGNMENT)
 - **Local Walkthrough Artifact**: `walkthrough.md` in repository documentation with verified reproduction steps.
 - **Generated Teaching Video**: Programmatically rendered `.mp4` video files served at `/static/videos/{session_id}.mp4`.
-- **Test Suite Status**: **18/18 passed in `pytest -v` (100% Green)** with zero API keys required.
+- **Test Suite Status**: **28/28 automated tests passed in `pytest -v` (100% Green)** including end-to-end user lifecycle tests.
 - **Frontend Build Status**: **Next.js 16.3.3 Turbopack build passed with 0 errors across all 12 routes**.
 
 ---

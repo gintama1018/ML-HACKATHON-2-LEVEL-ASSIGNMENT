@@ -141,6 +141,16 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
                 explanation_text = f"Welcome to today's lesson on {concept}. Let's examine the foundational principles step by step."
             citations = []
 
+        # Groundedness verification (REQ-20)
+        groundedness_info = None
+        if rag_chunks:
+            groundedness_info = rag_service.verify_groundedness(explanation_text, rag_chunks)
+            if not groundedness_info.get("is_grounded", True):
+                logger.warning(
+                    f"GROUNDING_WARNING: Concept '{concept}' explanation groundedness score is low "
+                    f"({groundedness_info.get('groundedness_score', 0):.2f} < 0.70)."
+                )
+
         # Call Agent 4: Visual Planner
         try:
             visual_data = plan_visual(concept=concept, visual_type_hint=visual_type_hint, explanation_text=explanation_text)
@@ -149,6 +159,9 @@ def create_session(payload: SessionCreateRequest, db: Session = Depends(get_db))
         except Exception as e:
             chosen_visual_type = visual_type_hint
             visual_spec = {"title": concept, "type": visual_type_hint}
+
+        if groundedness_info:
+            visual_spec["groundedness"] = groundedness_info
 
         first_segment = SessionSegment(
             session_id=session.id,
@@ -375,6 +388,16 @@ def advance_next_segment(session_id: str, db: Session = Depends(get_db)):
                 explanation_text = f"Now moving on to {concept}. Let's examine how this connects to what we just learned."
             citations = []
 
+        # Groundedness verification (REQ-20)
+        groundedness_info = None
+        if rag_chunks:
+            groundedness_info = rag_service.verify_groundedness(explanation_text, rag_chunks)
+            if not groundedness_info.get("is_grounded", True):
+                logger.warning(
+                    f"GROUNDING_WARNING: Concept '{concept}' explanation groundedness score is low "
+                    f"({groundedness_info.get('groundedness_score', 0):.2f} < 0.70)."
+                )
+
         # Call Agent 4: Visual Planner
         try:
             visual_data = plan_visual(concept=concept, visual_type_hint=visual_type_hint, explanation_text=explanation_text)
@@ -383,6 +406,9 @@ def advance_next_segment(session_id: str, db: Session = Depends(get_db)):
         except Exception as e:
             chosen_visual_type = visual_type_hint
             visual_spec = {"title": concept, "type": visual_type_hint}
+
+        if groundedness_info:
+            visual_spec["groundedness"] = groundedness_info
 
         new_segment = SessionSegment(
             session_id=session.id,
@@ -480,22 +506,41 @@ def submit_student_answer(
     db.refresh(response_entity)
 
     # 2. Call Agent 6: Response Evaluator (Semantic Evaluation)
+    ai_mode = "live"
     try:
         eval_data = evaluate_response(
             concept=current_segment.concept if current_segment else "Current Concept",
-            question_prompt=question.prompt,
+            prompt=question.prompt,
             student_response=payload.response_text,
             answer_key=question.answer_key or "Accurate conceptual explanation",
             is_unsure=payload.is_unsure
         )
         is_correct = eval_data.get("correct", False)
         confidence = eval_data.get("confidence", 0.9)
-        notes = eval_data.get("evaluation_notes", "")
+        notes = eval_data.get("evaluator_notes", eval_data.get("evaluation_notes", ""))
+        ai_mode = eval_data.get("ai_mode", "live")
     except Exception as e:
-        logger.warning(f"ResponseEvaluator fallback: {e}")
-        is_correct = False if payload.is_unsure else (payload.response_text.strip().lower() in (question.answer_key or "").lower())
-        confidence = 0.85
-        notes = "Answer evaluated against standard conceptual benchmarks."
+        logger.warning("LLM_FALLBACK_FIRED", extra={"agent": "ResponseEvaluator", "reason": str(e)})
+        ai_mode = "fallback"
+        if payload.is_unsure:
+            is_correct = False
+            confidence = 1.0
+            notes = "Student indicated uncertainty."
+        else:
+            resp_clean = payload.response_text.strip().lower()
+            key_clean = (question.answer_key or "").strip().lower()
+            if resp_clean == key_clean or resp_clean in key_clean or key_clean in resp_clean:
+                is_correct = True
+                confidence = 0.95
+                notes = f"Direct match with key concept for '{payload.response_text[:30]}'."
+            else:
+                key_tokens = set(key_clean.split())
+                resp_tokens = set(resp_clean.split())
+                overlap = key_tokens.intersection(resp_tokens)
+                overlap_ratio = len(overlap) / max(1, len(key_tokens))
+                is_correct = overlap_ratio >= 0.5
+                confidence = 0.85
+                notes = f"Offline token overlap ({overlap_ratio:.2f}) evaluated for '{payload.response_text[:30]}'."
 
     # Save evaluation entity
     eval_entity = Evaluation(
@@ -549,7 +594,7 @@ def submit_student_answer(
 
         feedback = "Let us examine this concept from an alternative perspective to address the underlying misconception."
 
-        # Call Agent 7: Misconception Detector (Claude Sonnet)
+        # Call Agent 7: Misconception Detector (Claude Sonnet / Gemini)
         try:
             misc_data = detect_misconception(
                 prompt=question.prompt,
@@ -558,7 +603,7 @@ def submit_student_answer(
                 evaluator_notes=notes
             )
             misc_desc = misc_data.get("description", "Conceptual gap regarding parameter relationships.")
-            misc_root = misc_data.get("root_cause", "Misinterpreted inverse proportionality.")
+            misc_root = misc_data.get("root_cause", "Misinterpreted governing mechanism.")
             misc_cat = misc_data.get("misconception_category", "Relationship Inversion")
             
             misconception_info = {
@@ -569,18 +614,21 @@ def submit_student_answer(
             eval_entity.misconception = misconception_info
             db.commit()
         except Exception as e:
-            logger.warning(f"Misconception detector error: {e}")
             c_name = current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "the core concept")
-            misc_desc = f"Misinterpreted key underlying relationship and parameter dependency in {c_name}."
+            resp_snippet = payload.response_text[:60].strip()
+            key_snippet = (question.answer_key or "")[:50].strip()
+            misc_desc = f"Your answer '{resp_snippet}' suggests confusing the core governing mechanism in {c_name} with '{key_snippet}'."
+            misc_root = f"Inferred '{resp_snippet}' as the valid relationship instead of '{key_snippet}' in {c_name}."
             misconception_info = {
                 "description": misc_desc,
-                "root_cause": f"Applied surface-level heuristic without accounting for systemic interactions in {c_name}.",
-                "misconception_category": "Conceptual Relationship Bias"
+                "root_cause": misc_root,
+                "misconception_category": "Conceptual Misattribution"
             }
             eval_entity.misconception = misconception_info
             db.commit()
+            logger.warning("LLM_FALLBACK_FIRED", extra={"agent": "MisconceptionDetector", "concept": c_name, "reason": str(e)})
 
-        # Call Agent 8: Adaptive Teacher (Claude Sonnet)
+        # Call Agent 8: Adaptive Teacher (Claude Sonnet / Gemini)
         try:
             adapt_data = adapt_and_reteach(
                 concept=current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "Current Concept"),
@@ -596,35 +644,36 @@ def submit_student_answer(
                 "new_analogy": adapt_data.get("new_analogy", f"Intuitive Concrete Model of {current_segment.concept if current_segment else 'concept'}")
             }
         except Exception as e:
-            logger.warning(f"AdaptiveTeacher fallback: {e}")
             c_name = current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "the core principle")
+            resp_snippet = payload.response_text[:50].strip()
             target_lang = (session.language or "English").lower()
             if "hindi" in target_lang:
-                new_explanation = f"आइए {c_name} को बुनियादी सिद्धांतों और स्पष्ट व्यावहारिक संदर्भ के साथ सरल रूप से पुनः समझते हैं। मुख्य अंतर्दृष्टि यह है कि इसके सभी प्रमुख घटक एक संरचित और तार्किक प्रक्रिया के तहत परस्पर जुड़े होते हैं।"
-                prompt_text = f"{c_name} के इस संरचित मॉडल के आधार पर, कौन सा कथन सबसे सटीक है?"
+                new_explanation = f"आइए {c_name} को आपके उत्तर ('{resp_snippet}') के संदर्भ में सरल और स्पष्ट रूप से पुनः समझते हैं। मुख्य अंतर्दृष्टि यह है कि इसके सभी प्रमुख घटक एक संरचित और तार्किक प्रक्रिया के तहत परस्पर जुड़े होते हैं।"
+                prompt_text = f"{c_name} के इस स्पष्टीकरण के आधार पर, कौन सा कथन सबसे सटीक है?"
                 opt_correct = f"{c_name} के मूलभूत सिद्धांत और प्रमुख घटक एक सुसंगत, तार्किक संरचना के अनुसार कार्य करते हैं।"
             elif "hinglish" in target_lang:
-                new_explanation = f"Chaliye {c_name} ko foundational intuition aur clear practical context ke sath step-by-step dobara samajhte hain. Core insight ye hai ki iske sare key components ek structured logical framework me interact karte hain."
-                prompt_text = f"{c_name} ke is structured model ke hisab se, kaun sa statement sabse accurate hai?"
+                new_explanation = f"Chaliye {c_name} ko aapke response ('{resp_snippet}') ke context me step-by-step dobara samajhte hain. Core insight ye hai ki iske sare key components ek structured logical framework me interact karte hain."
+                prompt_text = f"{c_name} ke is model ke hisab se, kaun sa statement sabse accurate hai?"
                 opt_correct = f"{c_name} ke core principles aur key components ek coherent, logical framework ke mutabiq operate karte hain."
             else:
-                new_explanation = f"Let's break down {c_name} step by step, starting from foundational intuition and clear practical context. The core insight is that each key component interacts within a cohesive, logically structured framework."
+                new_explanation = f"Let's break down {c_name} step by step. Considering your answer ('{resp_snippet}'), the key insight is that each component interacts within a cohesive, logically structured framework rather than in isolation."
                 prompt_text = f"Based on this structured understanding of {c_name}, which statement is most accurate?"
                 opt_correct = f"The foundational principles and key elements of {c_name} operate within a cohesive, logically structured framework."
 
-            adaptation_info = {"action": "analogy_switch", "new_analogy": f"Foundational Intuition Scaffold for {c_name}"}
+            adaptation_info = {"action": "analogy_switch", "new_analogy": f"Scaffolded Mental Model for {c_name}"}
             new_q_payload = {
                 "type": "mcq",
                 "prompt": prompt_text,
                 "options": [
                     opt_correct,
-                    f"The components of {c_name} function in complete isolation with zero systemic correlation.",
-                    f"The foundational framework of {c_name} is entirely arbitrary and lacks any structured logic.",
+                    f"The components of {c_name} function in complete isolation without systemic correlation.",
+                    f"The foundational framework of {c_name} is arbitrary and lacks structured logic.",
                     f"The primary dynamics of {c_name} remain completely invariant regardless of fundamental context."
                 ],
                 "answer_key": opt_correct,
                 "explanation_hint": f"Focus on how core principles and key elements connect within {c_name}."
             }
+            logger.warning("LLM_FALLBACK_FIRED", extra={"agent": "AdaptiveTeacher", "concept": c_name, "reason": str(e)})
 
         # Persist and create the genuine adaptive follow-up Question in DB
         if new_q_payload and isinstance(new_q_payload, dict):
@@ -672,6 +721,7 @@ def submit_student_answer(
         current_difficulty=session.current_difficulty,
         is_mastered=is_correct,
         is_session_advanced=is_correct,
+        ai_mode=ai_mode,
         evaluated_at=eval_entity.evaluated_at
     )
 

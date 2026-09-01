@@ -48,6 +48,16 @@ def plan_lesson(
 ) -> Dict[str, Any]:
     """Generates an ordered lesson plan with visual explainability, spaced-pacing, and cross-session weak concept reinforcement (REQ-43)"""
     weak_concepts_str = f"\n- Prior Identified Weak Concepts to Proactively Reinforce: {', '.join(weak_concepts)}" if weak_concepts else ""
+    
+    avail = str(profile.available_time or "20 min").lower()
+    if "5" in avail:
+        time_rule = "MANDATORY TIME RULE (5 min): Generate EXACTLY 1 to 2 high-yield, focused segments only."
+    elif "60" in avail:
+        time_rule = "MANDATORY TIME RULE (60 min): Generate EXACTLY 6 to 10 deep-dive segments covering edge cases, derivations, with formative checks."
+    elif "7" in avail or "day" in avail:
+        time_rule = "MANDATORY TIME RULE (7-day plan): Generate a 7-day structured learning path (Day 1 to Day 7) with Day 4 as spaced revision and Day 7 as capstone."
+    else:
+        time_rule = "MANDATORY TIME RULE (20 min): Generate EXACTLY 3 to 5 balanced conceptual, analytical, and practical application segments."
 
     user_prompt = f"""Design an optimal lesson plan for:
 Topic / Subject: {topic or 'Extracted Document Concepts'}
@@ -61,6 +71,8 @@ Learner Profile:
 - Depth: {profile.depth}
 - Existing Knowledge: {profile.existing_knowledge or 'None stated'}
 - Learning Objective: {profile.objective or 'Comprehensive mastery'}{weak_concepts_str}
+
+{time_rule}
 
 Create the structured lesson segments with visual explainability rationale."""
 

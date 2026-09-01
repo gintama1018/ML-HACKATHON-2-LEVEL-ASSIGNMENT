@@ -190,6 +190,7 @@ class EvaluationResponse(BaseModel):
     current_difficulty: Optional[str] = "Intermediate"
     is_mastered: bool = False
     is_session_advanced: bool = False
+    ai_mode: Optional[str] = "live"  # live, fallback
     evaluated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

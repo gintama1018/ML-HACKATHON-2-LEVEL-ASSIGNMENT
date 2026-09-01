@@ -24,12 +24,14 @@ def evaluate_response(
     concept: str = "",
     **kwargs
 ) -> Dict[str, Any]:
-    """Evaluates student answer correctness using semantic evaluation with Claude Haiku."""
+    """Evaluates student answer correctness using semantic evaluation with Claude Haiku / Gemini."""
+    prompt = prompt or kwargs.get("question_prompt", "")
     if is_unsure:
         return {
             "correct": False,
             "confidence": 1.0,
-            "evaluator_notes": "Student indicated uncertainty; needs conceptual reinforcement."
+            "evaluator_notes": f"Student indicated uncertainty on {concept or 'this question'}; conceptual scaffolding engaged.",
+            "ai_mode": "live"
         }
 
     user_prompt = f"""Evaluate this student response:
@@ -48,9 +50,11 @@ Is the student's response conceptually correct based on the underlying principle
             temperature=0.0
         )
         if "correct" in result:
+            result["ai_mode"] = "live"
             return result
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("LLM_FALLBACK_FIRED", extra={"agent": "ResponseEvaluator", "concept": concept, "reason": str(e)})
 
     # Semantic fallback evaluation: check overlap and key concept alignment
     resp_clean = student_response.strip().lower()
@@ -58,7 +62,12 @@ Is the student's response conceptually correct based on the underlying principle
     
     # Direct match or substring
     if resp_clean == key_clean or resp_clean in key_clean or key_clean in resp_clean:
-        return {"correct": True, "confidence": 0.95, "evaluator_notes": "Direct semantic alignment confirmed."}
+        return {
+            "correct": True,
+            "confidence": 0.95,
+            "evaluator_notes": f"Direct semantic match with key concept in {concept or 'question'}.",
+            "ai_mode": "fallback"
+        }
 
     # Semantic token overlap
     key_tokens = set(key_clean.split())
@@ -67,8 +76,10 @@ Is the student's response conceptually correct based on the underlying principle
     overlap_ratio = len(common) / max(1, len(key_tokens))
 
     is_sem_correct = overlap_ratio >= 0.5
+    resp_preview = student_response[:40].strip()
     return {
         "correct": is_sem_correct,
         "confidence": 0.85,
-        "evaluator_notes": f"Semantic overlap evaluated at {overlap_ratio:.2f}."
+        "evaluator_notes": f"Offline semantic evaluation for '{resp_preview}...' on {concept or 'concept'} (token overlap: {overlap_ratio:.2f}).",
+        "ai_mode": "fallback"
     }

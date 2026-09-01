@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.schemas import (
 from app.agents.lesson_planner import plan_lesson
 from app.services.claude_service import claude_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Lessons"])
 
 @router.get("/lessons", response_model=List[LessonResponse])
@@ -112,7 +114,8 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
     student_obj = db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
     historical_weak = student_obj.weak_concepts if student_obj and student_obj.weak_concepts else None
 
-    # Call Agent 2: Lesson Planner (Claude Sonnet / Gemini 1.5 Pro)
+    # Call Agent 2: Lesson Planner (Claude Sonnet / Gemini)
+    avail = str(profile.available_time or "20 min").lower()
     try:
         plan_data = plan_lesson(
             topic=payload.topic,
@@ -122,9 +125,37 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
         )
         segments = plan_data.get("segments", [])
         total_time = plan_data.get("total_estimated_minutes", 20)
+        
+        # Post-generation structural validator & clamping to documented time bands
+        if "5" in avail and not ("7" in avail or "day" in avail):
+            total_time = 5
+            if len(segments) > 2:
+                logger.warning(f"LessonPlanner returned {len(segments)} segments for 5 min; clamping to 2 segments.")
+                segments = segments[:2]
+            elif len(segments) < 1:
+                segments = segments or [{"order": 1, "concept": payload.topic or "Core Concept", "target_time": "5 min", "visual_type": "diagram", "skipped": False}]
+        elif "60" in avail:
+            total_time = 60
+            if len(segments) > 10:
+                logger.warning(f"LessonPlanner returned {len(segments)} segments for 60 min; clamping to 10 segments.")
+                segments = segments[:10]
+        elif "7" in avail or "day" in avail:
+            total_time = 7 * 45
+            for idx, s in enumerate(segments):
+                if "day_number" not in s or not s.get("day_number"):
+                    s["day_number"] = min(7, idx + 1)
+        else: # 20 min default
+            total_time = 20
+            if len(segments) > 5:
+                logger.warning(f"LessonPlanner returned {len(segments)} segments for 20 min; clamping to 5 segments.")
+                segments = segments[:5]
+            elif len(segments) < 3:
+                # Ensure minimum 3 segments for 20 min
+                pass
+
     except Exception as e:
+        logger.warning(f"LessonPlanner fallback fired: {e}")
         topic_title = payload.topic or (material.filename if payload.material_id and material else "Foundations of Subject")
-        avail = profile.available_time.lower() if profile.available_time else ""
         is_7_day = "7" in avail or "day" in avail or "week" in avail or ("7" in (payload.topic or "").lower() and "day" in (payload.topic or "").lower())
         
         if is_7_day:
@@ -208,17 +239,17 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
                     "skipped": False
                 }
             ]
-        else:
-            total_time = 5 if "5" in avail else (60 if "60" in avail else 20)
+        elif "5" in avail:
+            total_time = 5
             segments = [
                 {
                     "order": 1,
                     "day_number": 1,
                     "is_revision_day": False,
-                    "concept": f"Introduction & Core Intuition of {topic_title}",
-                    "target_time": f"{max(2, total_time // 3)} min",
+                    "concept": f"High-Yield Core Intuition of {topic_title}",
+                    "target_time": "2 min",
                     "visual_type": "diagram",
-                    "visual_rationale": "Visual diagram provides immediate intuitive spatial grounding",
+                    "visual_rationale": "Immediate visual schematic of primary concept",
                     "learning_objective": "Understand high-level definitions and core mechanics",
                     "skipped": False
                 },
@@ -226,25 +257,159 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
                     "order": 2,
                     "day_number": 1,
                     "is_revision_day": False,
-                    "concept": f"Quantitative Mechanics & Mathematical Framework",
-                    "target_time": f"{max(2, total_time // 3)} min",
-                    "visual_type": "chart",
-                    "visual_rationale": "Coordinate curves display empirical and theoretical relationships",
-                    "learning_objective": "Solve governing mathematical equations with precision",
+                    "concept": f"Key Principle & Practical Rule of {topic_title}",
+                    "target_time": "3 min",
+                    "visual_type": "math",
+                    "visual_rationale": "Direct rule or equation for immediate problem-solving",
+                    "learning_objective": "Apply core relationship directly",
+                    "skipped": False
+                }
+            ]
+        elif "60" in avail:
+            total_time = 60
+            segments = [
+                {
+                    "order": 1,
+                    "day_number": 1,
+                    "is_revision_day": False,
+                    "concept": f"1. Foundations & Historical Motivation of {topic_title}",
+                    "target_time": "10 min",
+                    "visual_type": "diagram",
+                    "visual_rationale": "Scaffolding of underlying conceptual motivation",
+                    "learning_objective": "Understand why the governing principles exist",
+                    "skipped": False
+                },
+                {
+                    "order": 2,
+                    "day_number": 1,
+                    "is_revision_day": False,
+                    "concept": f"2. Mathematical Formulation & First Principles Derivation",
+                    "target_time": "10 min",
+                    "visual_type": "math",
+                    "visual_rationale": "Formal equations clarify quantitative relationships",
+                    "learning_objective": "Derive primary equations and verify dimensional units",
                     "skipped": False
                 },
                 {
                     "order": 3,
                     "day_number": 1,
                     "is_revision_day": False,
-                    "concept": f"Real-World Engineering & Applied Scenarios",
-                    "target_time": f"{max(2, total_time // 3)} min",
-                    "visual_type": "math",
-                    "visual_rationale": "Applied equations connect textbook theory to practical engineering",
-                    "learning_objective": "Synthesize knowledge to solve practical real-world problems",
+                    "concept": f"3. Formative Checkpoint 1 & Empirical Analysis",
+                    "target_time": "8 min",
+                    "visual_type": "chart",
+                    "visual_rationale": "Empirical curve verifies parameter dependency",
+                    "learning_objective": "Validate intuition on intermediate cases",
+                    "skipped": False
+                },
+                {
+                    "order": 4,
+                    "day_number": 1,
+                    "is_revision_day": False,
+                    "concept": f"4. Boundary Conditions & Non-Ideal Edge Cases",
+                    "target_time": "10 min",
+                    "visual_type": "diagram",
+                    "visual_rationale": "Inspect extreme operational limits and breakdown modes",
+                    "learning_objective": "Identify domain limitations and failure modes",
+                    "skipped": False
+                },
+                {
+                    "order": 5,
+                    "day_number": 1,
+                    "is_revision_day": False,
+                    "concept": f"5. Computational Simulation & Applied Modeling",
+                    "target_time": "12 min",
+                    "visual_type": "code",
+                    "visual_rationale": "Code implementation reinforces algorithmic mechanics",
+                    "learning_objective": "Solve complex real-world modeling challenges",
+                    "skipped": False
+                },
+                {
+                    "order": 6,
+                    "day_number": 1,
+                    "is_revision_day": False,
+                    "concept": f"6. Comprehensive Synthesis & Capstone Check",
+                    "target_time": "10 min",
+                    "visual_type": "chart",
+                    "visual_rationale": "Mastery visualizer summarizes overall progress",
+                    "learning_objective": "Demonstrate complete deep-dive mastery",
                     "skipped": False
                 }
             ]
+        else: # 20 min
+            total_time = 20
+            if historical_weak:
+                weak_item = historical_weak[0]
+                segments = [
+                    {
+                        "order": 1,
+                        "day_number": 1,
+                        "is_revision_day": True,
+                        "concept": f"Foundational Review & Reinforcement of {weak_item}",
+                        "target_time": "5 min",
+                        "visual_type": "diagram",
+                        "visual_rationale": f"Proactively resolves prior diagnosed misconception in {weak_item}",
+                        "learning_objective": f"Reinforce core mechanics of {weak_item}",
+                        "skipped": False
+                    },
+                    {
+                        "order": 2,
+                        "day_number": 1,
+                        "is_revision_day": False,
+                        "concept": f"Core Mechanics & Framework of {topic_title}",
+                        "target_time": "8 min",
+                        "visual_type": "chart",
+                        "visual_rationale": "Coordinate curves display empirical and theoretical relationships",
+                        "learning_objective": "Master governing equations and quantitative foundations",
+                        "skipped": False
+                    },
+                    {
+                        "order": 3,
+                        "day_number": 1,
+                        "is_revision_day": False,
+                        "concept": f"Real-World Engineering & Applied Scenarios of {topic_title}",
+                        "target_time": "7 min",
+                        "visual_type": "math",
+                        "visual_rationale": "Applied equations connect textbook theory to practical engineering",
+                        "learning_objective": "Synthesize knowledge to solve practical real-world problems",
+                        "skipped": False
+                    }
+                ]
+            else:
+                segments = [
+                    {
+                        "order": 1,
+                        "day_number": 1,
+                        "is_revision_day": False,
+                        "concept": f"Introduction & Core Intuition of {topic_title}",
+                        "target_time": "6 min",
+                        "visual_type": "diagram",
+                        "visual_rationale": "Visual diagram provides immediate intuitive spatial grounding",
+                        "learning_objective": "Understand high-level definitions and core mechanics",
+                        "skipped": False
+                    },
+                    {
+                        "order": 2,
+                        "day_number": 1,
+                        "is_revision_day": False,
+                        "concept": f"Quantitative Mechanics & Mathematical Framework",
+                        "target_time": "7 min",
+                        "visual_type": "chart",
+                        "visual_rationale": "Coordinate curves display empirical and theoretical relationships",
+                        "learning_objective": "Solve governing mathematical equations with precision",
+                        "skipped": False
+                    },
+                    {
+                        "order": 3,
+                        "day_number": 1,
+                        "is_revision_day": False,
+                        "concept": f"Real-World Engineering & Applied Scenarios",
+                        "target_time": "7 min",
+                        "visual_type": "math",
+                        "visual_rationale": "Applied equations connect textbook theory to practical engineering",
+                        "learning_objective": "Synthesize knowledge to solve practical real-world problems",
+                        "skipped": False
+                    }
+                ]
 
     # Create Lesson entity with draft status for review
     lesson = Lesson(

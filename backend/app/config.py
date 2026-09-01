@@ -9,14 +9,17 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # LLM Model Configuration (Claude & Gemini Dual Support)
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "auto")  # auto, claude, gemini
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")  # gemini, claude, auto
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     CLAUDE_REASONING_MODEL: str = os.getenv("CLAUDE_REASONING_MODEL", "claude-3-7-sonnet-20250219")
     CLAUDE_FAST_MODEL: str = os.getenv("CLAUDE_FAST_MODEL", "claude-3-5-haiku-20241022")
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-1.5-pro")
-    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-1.5-flash")
+    # Current GA model IDs for Google Gemini:
+    # Reasoning/Pedagogical planning: gemini-2.5-flash (strong, structured reasoning)
+    # Fast extraction/scoring:       gemini-2.0-flash (low-latency, high throughput)
+    GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-2.5-flash")
+    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-2.0-flash")
     
     # Storage Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

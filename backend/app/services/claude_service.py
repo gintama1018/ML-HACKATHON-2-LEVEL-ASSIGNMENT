@@ -27,8 +27,14 @@ class UnifiedLLMService:
 
         self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_key) if self.anthropic_key else None
         
-        if HAVE_GEMINI and self.gemini_key:
-            genai.configure(api_key=self.gemini_key)
+        # Check for valid, non-placeholder Gemini API Key
+        has_real_gemini_key = bool(
+            self.gemini_key and
+            self.gemini_key.strip() and
+            not self.gemini_key.strip().startswith("YOUR_")
+        )
+        if HAVE_GEMINI and has_real_gemini_key:
+            genai.configure(api_key=self.gemini_key.strip())
             self.gemini_configured = True
         else:
             self.gemini_configured = False
@@ -52,14 +58,16 @@ class UnifiedLLMService:
             response = model.generate_content(user_prompt)
             return response.text
         except Exception as e:
-            logger.warning(f"Gemini generation with {model_name} failed: {e}. Trying gemini-1.5-flash fallback.")
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
-                system_instruction=system_prompt,
-                generation_config={"temperature": temperature}
-            )
-            response = model.generate_content(user_prompt)
-            return response.text
+            if model_name != self.gemini_fast_model:
+                logger.warning(f"Gemini generation with {model_name} failed: {e}. Trying {self.gemini_fast_model} fallback.")
+                model = genai.GenerativeModel(
+                    model_name=self.gemini_fast_model,
+                    system_instruction=system_prompt,
+                    generation_config={"temperature": temperature}
+                )
+                response = model.generate_content(user_prompt)
+                return response.text
+            raise
 
     def call_reasoning(
         self,

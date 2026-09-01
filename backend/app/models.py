@@ -253,3 +253,21 @@ class LearningPathModule(Base):
     completed_at = Column(DateTime, nullable=True)
     
     path = relationship("LearningPath", back_populates="modules")
+
+class VideoJob(Base):
+    __tablename__ = "video_jobs"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    session_id = Column(String(36), nullable=True)
+    segment_id = Column(String(36), nullable=True)
+    status = Column(String(50), default="queued")  # queued, processing, ready, failed
+    video_url = Column(String(500), nullable=True)
+    audio_url = Column(String(500), nullable=True)
+    file_size_bytes = Column(Integer, default=0)
+    total_duration_seconds = Column(Float, default=0.0)
+    scenes = Column(JSON, default=list)
+    captions = Column(JSON, nullable=True)
+    mode = Column(String(50), default="ai_video_engine")
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

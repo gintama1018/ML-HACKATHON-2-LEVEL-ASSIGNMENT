@@ -82,12 +82,17 @@ def generate_lesson_plan(payload: LessonGenerateRequest, db: Session = Depends(g
         if material and material.extracted_summary:
             extracted_concepts = material.extracted_summary.get("key_concepts", [])
 
-    # Call Agent 2: Lesson Planner (Claude Sonnet)
+    # Fetch student historical weak concepts for cross-session adaptation (REQ-43)
+    student_obj = db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
+    historical_weak = student_obj.weak_concepts if student_obj and student_obj.weak_concepts else None
+
+    # Call Agent 2: Lesson Planner (Claude Sonnet / Gemini 1.5 Pro)
     try:
         plan_data = plan_lesson(
             topic=payload.topic,
             concepts=extracted_concepts,
-            profile=profile
+            profile=profile,
+            weak_concepts=historical_weak
         )
         segments = plan_data.get("segments", [])
         total_time = plan_data.get("total_estimated_minutes", 20)

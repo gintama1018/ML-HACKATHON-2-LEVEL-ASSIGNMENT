@@ -122,13 +122,31 @@ class RAGService:
             try:
                 from pypdf import PdfReader
                 reader = PdfReader(file_path)
+                current_chapter = "General Overview"
                 for idx, page in enumerate(reader.pages, 1):
                     text = page.extract_text() or ""
                     if text.strip():
+                        # Structural Chapter / Section Heading Detection (REQ-18)
+                        first_lines = text.strip().split("\n")[:4]
+                        detected_heading = None
+                        for line in first_lines:
+                            line_clean = line.strip()
+                            chap_match = re.search(r'(?:Chapter|Unit|Module|Section|\b\d+\.\d+)\s*[:.-]?\s*([A-Za-z0-9\s:-]{3,60})', line_clean, re.IGNORECASE)
+                            if chap_match:
+                                detected_heading = chap_match.group(0).strip()
+                                current_chapter = detected_heading
+                                break
+                            elif len(line_clean) > 3 and len(line_clean) < 50 and line_clean.isupper():
+                                detected_heading = line_clean.title()
+                                current_chapter = detected_heading
+                                break
+
+                        section_ref = detected_heading if detected_heading else f"{current_chapter} (Page {idx})"
                         chunks_raw.append({
                             "text": text.strip(),
                             "page_number": idx,
-                            "section_ref": f"Page {idx}"
+                            "section_ref": section_ref,
+                            "chapter_title": current_chapter
                         })
             except Exception as e:
                 logger.error(f"Error reading PDF {file_path}: {e}")
@@ -315,5 +333,31 @@ class RAGService:
         except Exception as e:
             logger.error(f"Error retrieving from Chroma collection for {material_id}: {e}")
             return []
+
+    def verify_groundedness(self, generated_text: str, source_chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Validates that generated explanation is faithful to source chunks (REQ-20)"""
+        if not source_chunks or not generated_text:
+            return {"groundedness_score": 1.0, "is_grounded": True, "overlap_ratio": 1.0}
+
+        # Tokenize content words (ignoring basic stop words)
+        stop_words = {"the", "a", "an", "is", "in", "of", "and", "to", "for", "with", "on", "at", "by", "from", "this", "that", "it", "are", "be", "as"}
+        gen_tokens = {w.lower() for w in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', generated_text) if w.lower() not in stop_words}
+        
+        all_source_text = " ".join([c.get("text", "") for c in source_chunks])
+        source_tokens = {w.lower() for w in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', all_source_text) if w.lower() not in stop_words}
+
+        if not gen_tokens:
+            return {"groundedness_score": 1.0, "is_grounded": True, "overlap_ratio": 1.0}
+
+        overlap = gen_tokens.intersection(source_tokens)
+        overlap_ratio = len(overlap) / max(len(gen_tokens), 1)
+        groundedness_score = round(min(0.6 + (overlap_ratio * 0.4), 1.0), 2)
+
+        return {
+            "groundedness_score": groundedness_score,
+            "is_grounded": groundedness_score >= 0.70,
+            "matched_concepts_count": len(overlap),
+            "overlap_ratio": round(overlap_ratio, 3)
+        }
 
 rag_service = RAGService()

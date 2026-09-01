@@ -15,7 +15,7 @@ class VideoGeneratorService:
     def __init__(self, output_dir: str = "./static/videos"):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        self.fps = 15
+        self.fps = 24
         self.width = 1280
         self.height = 720
 

@@ -43,9 +43,12 @@ You MUST return valid JSON matching this schema:
 def plan_lesson(
     topic: Optional[str],
     concepts: Optional[List[str]],
-    profile: LearnerProfile
+    profile: LearnerProfile,
+    weak_concepts: Optional[List[str]] = None
 ) -> Dict[str, Any]:
-    """Generates an ordered lesson plan with visual explainability and spaced-pacing using Claude Sonnet"""
+    """Generates an ordered lesson plan with visual explainability, spaced-pacing, and cross-session weak concept reinforcement (REQ-43)"""
+    weak_concepts_str = f"\n- Prior Identified Weak Concepts to Proactively Reinforce: {', '.join(weak_concepts)}" if weak_concepts else ""
+
     user_prompt = f"""Design an optimal lesson plan for:
 Topic / Subject: {topic or 'Extracted Document Concepts'}
 Extracted Concepts (if any): {', '.join(concepts) if concepts else 'None provided'}
@@ -57,7 +60,7 @@ Learner Profile:
 - Language: {profile.language}
 - Depth: {profile.depth}
 - Existing Knowledge: {profile.existing_knowledge or 'None stated'}
-- Learning Objective: {profile.objective or 'Comprehensive mastery'}
+- Learning Objective: {profile.objective or 'Comprehensive mastery'}{weak_concepts_str}
 
 Create the structured lesson segments with visual explainability rationale."""
 

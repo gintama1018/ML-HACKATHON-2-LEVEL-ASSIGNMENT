@@ -9,8 +9,8 @@ import {
   Save,
   CheckCircle2,
   AlertTriangle,
-  Cpu,
-  User
+  User,
+  Sliders
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -75,53 +75,61 @@ export default function SettingsPage() {
 
   return (
     <AppShell pageTitle={t("settings.title")}>
-      <div className="max-w-xl mx-auto space-y-4 animate-in fade-in duration-200">
-        <div>
-          <h2 className="font-heading text-lg font-bold text-[#0b1c30]">
+      <div className="max-w-xl mx-auto space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-heading text-xl sm:text-2xl font-bold text-[#0f172a] tracking-tight">
             {t("settings.title")}
-          </h2>
-          <p className="text-xs text-slate-500">
+          </h1>
+          <p className="text-sm text-slate-600">
             {t("settings.subtitle")}
           </p>
         </div>
 
-        {/* Profile Settings */}
-        <form onSubmit={handleSave} className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-            <User className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{t("settings.student_profile")}</span>
+        {/* Profile Settings Form Capsule */}
+        <form onSubmit={handleSave} className="p-6 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-5">
+          <div className="flex items-center gap-2 text-xs font-bold text-[#0f172a]">
+            <User className="w-4 h-4 text-slate-600" />
+            <span>Learner Profile</span>
           </div>
 
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-slate-600">{t("settings.display_name")}</label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              {t("settings.display_name")}
+            </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-sm font-medium text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">{t("settings.default_lang")}</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                {t("settings.default_lang")}
+              </label>
               <select
                 value={defaultLanguage}
                 onChange={(e) => setDefaultLanguage(e.target.value as SupportedLanguage)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-[#0b1c30] focus:outline-none"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 <option value="English">English</option>
                 <option value="Hindi">Hindi (हिंदी)</option>
-                <option value="Hinglish">Hinglish</option>
+                <option value="Hinglish">Conversational Hinglish</option>
+                <option value="Tamil">Tamil (தமிழ்)</option>
+                <option value="Bengali">Bengali (বাংলা)</option>
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">{t("settings.default_level")}</label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                {t("settings.default_level")}
+              </label>
               <select
                 value={defaultLevel}
                 onChange={(e) => setDefaultLevel(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-[#0b1c30] focus:outline-none"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
@@ -130,10 +138,10 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-end pt-2">
             <button
               type="submit"
-              className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-6 py-2.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-full transition interactive-tactile flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               {isSaved ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5" />}
               <span>{isSaved ? "Saved!" : t("settings.save")}</span>
@@ -141,64 +149,51 @@ export default function SettingsPage() {
           </div>
         </form>
 
-        {/* AI Model Status */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-2.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-            <Cpu className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{t("settings.model_tiers")}</span>
+        {/* Danger Zone: Clear History Capsule */}
+        <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-rose-800">
+            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <span>Reset Learning Telemetry</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 text-xs">
-            <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="font-bold text-[#0f172a] text-[11px]">Reasoning Tier</p>
-              <p className="font-mono text-emerald-700 font-bold text-[10px]">claude-sonnet-5</p>
-              <p className="text-slate-500 text-[10px] mt-0.5">Teaching & Assessment</p>
-            </div>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Clear all recorded diagnostic mastery history, misconception logs, and progress metrics.
+          </p>
 
-            <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="font-bold text-[#0f172a] text-[11px]">Fast Tier</p>
-              <p className="font-mono text-emerald-700 font-bold text-[10px]">claude-haiku-4-5-20251001</p>
-              <p className="text-slate-500 text-[10px] mt-0.5">Analyzer & Questions</p>
-            </div>
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold rounded-full transition interactive-tactile flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear History Data</span>
+            </button>
           </div>
         </div>
 
-        {/* Reset */}
-        <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-200 flex items-center justify-between gap-3">
-          <div className="text-xs">
-            <p className="font-bold text-rose-900">{t("settings.danger_zone")}</p>
-            <p className="text-[11px] text-rose-700">Reset learning history and concept mastery</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowDeleteModal(true)}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg transition shrink-0 cursor-pointer"
-          >
-            {t("settings.clear_data")}
-          </button>
-        </div>
-
+        {/* Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className="max-w-xs w-full bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xl">
-              <h3 className="font-heading text-sm font-bold text-[#0b1c30]">Reset History?</h3>
-              <p className="text-xs text-slate-500">
-                This will clear all completed lesson scores and mastery statistics.
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+            <div className="max-w-xs w-full bg-white border border-slate-200 rounded-3xl p-6 space-y-3 shadow-xl">
+              <h3 className="font-heading text-sm font-bold text-[#0f172a]">Reset Student Data?</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                This will reset your recorded concepts, weak points, and lesson history.
               </p>
-              <div className="flex items-center justify-end gap-2 pt-1">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg"
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-full transition interactive-tactile cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleClearData}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg"
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-full transition interactive-tactile cursor-pointer"
                 >
-                  Clear Data
+                  Reset
                 </button>
               </div>
             </div>

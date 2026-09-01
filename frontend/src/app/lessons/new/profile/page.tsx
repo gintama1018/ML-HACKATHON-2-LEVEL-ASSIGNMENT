@@ -6,14 +6,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { api } from "@/lib/api";
 import { useLanguage, SupportedLanguage } from "@/context/LanguageContext";
 import {
-  Sparkles,
   ArrowRight,
   ChevronDown,
   ChevronUp,
   Clock,
-  Languages,
-  Target,
-  Layers,
+  Sparkles,
   AlertCircle
 } from "lucide-react";
 
@@ -85,195 +82,178 @@ export default function LearnerProfilePage() {
 
   return (
     <AppShell pageTitle={t("profile.title")}>
-      <div className="max-w-xl mx-auto space-y-4 animate-in fade-in duration-200">
-        <div>
-          <h2 className="font-heading text-lg font-bold text-[#0b1c30]">
-            {t("profile.title")}
-          </h2>
-          <p className="text-xs text-slate-500">
-            {t("profile.subtitle")}
+      <div className="max-w-xl mx-auto space-y-6">
+        {/* Step Indicator & Header */}
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-slate-500">
+            Step 2 of 3 · Learner Profile
+          </span>
+          <h1 className="font-heading text-xl sm:text-2xl font-bold text-[#0f172a] tracking-tight">
+            Personalize Your Classroom
+          </h1>
+          <p className="text-sm text-slate-600">
+            Configure pacing, target depth, and language to tailor the AI Teacher's explanations.
           </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-4">
-          {/* Target Topic or Material Info */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-700">Subject / Topic:</span>
-            <span className="font-mono text-emerald-800 font-bold truncate max-w-xs">
+        <form onSubmit={handleSubmit} className="p-6 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-5">
+          {/* Target Topic Context */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-700">Subject:</span>
+            <span className="font-mono text-[#0f172a] font-bold truncate max-w-xs">
               {sourceType === "material" ? (materialName || "Uploaded Document") : (topic || "General Concept")}
             </span>
           </div>
 
-          {/* Level Selection Chips */}
-          <div className="space-y-1.5">
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-              {t("profile.level")}
+          {/* Level Selection with Pill Buttons */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700">
+              Your Current Level
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               {(["Beginner", "Intermediate", "Advanced"] as const).map((lvl) => (
                 <button
                   key={lvl}
                   type="button"
                   onClick={() => setLevel(lvl)}
-                  className={`py-2 px-3 rounded-lg border text-xs font-bold transition cursor-pointer text-center ${
+                  className={`py-2 px-3 rounded-full border text-xs font-semibold transition cursor-pointer interactive-tactile text-center ${
                     level === lvl
-                      ? "bg-[#0f172a] border-[#0f172a] text-white shadow-xs"
+                      ? "bg-[#0f172a] border-[#0f172a] text-white shadow-xs font-bold"
                       : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  {lvl === "Beginner" && t("profile.level_beginner")}
-                  {lvl === "Intermediate" && t("profile.level_intermediate")}
-                  {lvl === "Advanced" && t("profile.level_advanced")}
+                  {lvl}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Available Time Budget */}
-          <div className="space-y-1.5">
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <Clock className="w-3 h-3 text-slate-400" />
-              <span>{t("profile.time")}</span>
+          {/* Available Time Budget with Pill Buttons */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700">
+              Time Budget
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {(["5 min", "20 min", "60 min", "7-day plan"] as const).map((time) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(["5 min", "20 min", "60 min", "7-day plan"] as const).map((tVal) => (
                 <button
-                  key={time}
+                  key={tVal}
                   type="button"
-                  onClick={() => setAvailableTime(time)}
-                  className={`py-1.5 px-2 rounded-lg border text-[11px] font-bold transition cursor-pointer text-center ${
-                    availableTime === time
-                      ? "bg-emerald-700 border-emerald-700 text-white shadow-xs"
+                  onClick={() => setAvailableTime(tVal)}
+                  className={`py-2 px-3 rounded-full border text-xs font-medium transition cursor-pointer interactive-tactile flex items-center justify-center gap-1.5 ${
+                    availableTime === tVal
+                      ? "bg-[#0f172a] border-[#0f172a] text-white font-bold"
                       : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  {time}
+                  <Clock className="w-3.5 h-3.5 opacity-70" />
+                  <span>{tVal}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 2-Column: Learning Objective & Desired Depth */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                <Target className="w-3 h-3 text-slate-400" />
-                <span>Learning Objective</span>
-              </label>
-              <select
-                value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
-              >
-                <option value="Concept Mastery">Concept Mastery</option>
-                <option value="Exam Preparation">Exam Preparation</option>
-                <option value="Quick Revision">Quick Revision</option>
-                <option value="Practical Application">Practical Application</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                <Layers className="w-3 h-3 text-slate-400" />
-                <span>Desired Depth</span>
-              </label>
-              <select
-                value={depth}
-                onChange={(e) => setDepth(e.target.value)}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
-              >
-                <option value="Intuitive & High-Level">Intuitive & High-Level</option>
-                <option value="Standard Curriculum">Standard Curriculum</option>
-                <option value="Deep-Dive & Rigorous">Deep-Dive & Rigorous</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Language Selector */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <Languages className="w-3 h-3 text-slate-400" />
-              <span>{t("profile.language")}</span>
+          {/* Language Selection */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700">
+              Teaching Language
             </label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
-              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               <option value="English">English</option>
               <option value="Hindi">Hindi (हिंदी)</option>
-              <option value="Hinglish">Hinglish</option>
+              <option value="Hinglish">Conversational Hinglish</option>
+              <option value="Tamil">Tamil (தமிழ்)</option>
+              <option value="Bengali">Bengali (বাংলা)</option>
             </select>
           </div>
 
-          {/* Advanced Accordion: Existing Knowledge & Style */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
+          {/* Advanced Customization Toggle */}
+          <div className="pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full p-2.5 bg-slate-50 flex items-center justify-between text-xs font-bold text-slate-700 cursor-pointer"
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
             >
-              <span>{t("profile.advanced")}</span>
-              {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <span>{showAdvanced ? "Hide Advanced Options" : "Advanced Customization (Optional)"}</span>
             </button>
 
             {showAdvanced && (
-              <div className="p-3 bg-white space-y-3 border-t border-slate-200">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-600">
-                    {t("profile.existing_knowledge")}
+              <div className="pt-4 space-y-4 animate-in fade-in duration-150">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Existing Knowledge / Prerequisites
                   </label>
-                  <textarea
-                    rows={2}
+                  <input
+                    type="text"
                     value={existingKnowledge}
                     onChange={(e) => setExistingKnowledge(e.target.value)}
-                    placeholder="e.g., I know basic algebra and basic definitions..."
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-[#0b1c30] placeholder:text-slate-400 focus:outline-none focus:border-[#0f172a]"
+                    placeholder="e.g. Basic algebra and basic circuit terminology"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-600">
-                    {t("profile.teaching_style")}
-                  </label>
-                  <select
-                    value={teachingStyle}
-                    onChange={(e) => setTeachingStyle(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
-                  >
-                    <option value="Simple & example-heavy">{t("profile.style_simple")}</option>
-                    <option value="Technical & rigorous">{t("profile.style_technical")}</option>
-                    <option value="Story-driven & conversational">{t("profile.style_story")}</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Objective
+                    </label>
+                    <select
+                      value={objective}
+                      onChange={(e) => setObjective(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    >
+                      <option value="Concept Mastery">Concept Mastery</option>
+                      <option value="Quick Review">Quick Review</option>
+                      <option value="Exam Preparation">Exam Preparation</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Pedagogical Depth
+                    </label>
+                    <select
+                      value={depth}
+                      onChange={(e) => setDepth(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    >
+                      <option value="Standard">Standard</option>
+                      <option value="Deep Intuition">Deep Intuition</option>
+                      <option value="Rigorous Derivations">Rigorous Derivations</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Action CTA */}
-          <div className="pt-2 flex justify-end">
+          {/* Submit CTA Pill */}
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition flex items-center gap-2 shadow-xs cursor-pointer"
+              className="px-6 py-2.5 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-50 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs"
             >
               {isSubmitting ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>{t("profile.generating")}</span>
+                  <Sparkles className="w-4 h-4 animate-spin text-emerald-400" />
+                  <span>Structuring Curriculum...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{t("profile.generate_plan")}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Generate Lesson Plan</span>
+                  <ArrowRight className="w-4 h-4 text-emerald-400" />
                 </>
               )}
             </button>

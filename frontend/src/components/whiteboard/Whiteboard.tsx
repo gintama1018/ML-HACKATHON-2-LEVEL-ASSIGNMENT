@@ -23,7 +23,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
   };
 
   const rationaleText = visualSpec.decision_rationale || 
-    `Selected ${visualType.toUpperCase()} representation to provide an intuitive mental model for ${concept}.`;
+    `Selected ${visualType} representation to provide an intuitive mental model for ${concept}.`;
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -39,22 +39,22 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
             {visualType === "chemistry" && <FlaskConical className="w-3.5 h-3.5 text-purple-600" />}
             {visualType === "timeline" && <Clock className="w-3.5 h-3.5 text-blue-600" />}
           </span>
-          <span className="font-bold text-[#0b1c30] truncate text-xs">
+          <span className="font-bold text-[#0f172a] truncate text-xs">
             {visualSpec.title || concept}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setShowRationale(!showRationale)}
             title="AI Visual Selection Rationale"
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition interactive-tactile cursor-pointer"
           >
-            <Info className="w-3 h-3 text-emerald-600" />
+            <Info className="w-3 h-3 text-slate-500" />
             <span>Why this visual?</span>
           </button>
-          <span className="px-2 py-0.5 rounded font-bold text-[10px] uppercase tracking-wider bg-slate-200 text-slate-800">
+          <span className="px-2 py-0.5 rounded font-semibold text-[11px] bg-slate-200 text-slate-700 capitalize">
             {visualType}
           </span>
         </div>
@@ -62,8 +62,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
 
       {/* Visual Explainability Callout (REQ-57) */}
       {showRationale && (
-        <div className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-200 text-[11px] text-emerald-900 flex items-start gap-1.5 animate-fadeIn">
-          <span className="font-bold text-emerald-800 shrink-0">Decision Rationale:</span>
+        <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 text-xs text-slate-700 flex items-start gap-1.5 animate-in fade-in duration-100">
+          <span className="font-semibold text-[#0f172a] shrink-0">Decision Rationale:</span>
           <span>{rationaleText}</span>
         </div>
       )}
@@ -95,7 +95,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
           </div>
         )}
 
-        {/* MODE 2: BIOLOGY STRUCTURE (REQ-54) */}
+        {/* MODE 2: BIOLOGY STRUCTURE */}
         {visualType === "biology" && (
           <div className="w-full h-full flex flex-col items-center justify-between p-1.5">
             <p className="text-[11px] font-semibold text-emerald-400 text-center">
@@ -117,147 +117,111 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
           </div>
         )}
 
-        {/* MODE 3: CHEMISTRY REACTION & MOLECULAR (REQ-53) */}
+        {/* MODE 3: CHEMISTRY REACTION & MOLECULAR */}
         {visualType === "chemistry" && (
           <div className="w-full h-full flex flex-col items-center justify-between p-1.5">
-            <p className="text-[11px] font-semibold text-purple-400 text-center">
-              Chemical Kinetics & Reaction Energy Pathway
+            <p className="text-[11px] font-semibold text-cyan-400 text-center">
+              Stoichiometric Reaction & Molecular Mechanism
             </p>
             <div className="w-full max-w-md h-36 relative flex items-center justify-center">
-              <svg className="w-full h-full" viewBox="0 0 300 110">
-                <line x1="30" y1="95" x2="270" y2="95" stroke="#475569" strokeWidth="1.5" />
-                <line x1="30" y1="15" x2="30" y2="95" stroke="#475569" strokeWidth="1.5" />
-                <path d="M 30 75 Q 120 75, 140 25 Q 160 25, 180 75 L 270 85" fill="none" stroke="#a855f7" strokeWidth="2.5" />
-                <circle cx="150" cy="25" r="4" fill="#ec4899" />
-                <text x="135" y="18" fill="#f472b6" fontSize="9" fontWeight="bold">Transition State (Ea)</text>
-                <text x="35" y="70" fill="#34d399" fontSize="9" fontWeight="bold">Reactants [A+B]</text>
-                <text x="210" y="80" fill="#60a5fa" fontSize="9" fontWeight="bold">Products [C+D]</text>
-        {/* MODE 4: DIAGRAM (CIRCUITS & SCHEMATICS) */}
-        {visualType === "diagram" && (
-          <div className="w-full h-full flex flex-col items-center justify-center p-2 space-y-2">
-            <div className="w-full max-w-xs h-28 border border-slate-700/80 rounded-lg p-2 bg-slate-900/90 flex items-center justify-center">
-              <svg viewBox="0 0 300 100" className="w-full h-full">
-                <rect x="30" y="20" width="240" height="60" fill="none" stroke="#64748b" strokeWidth="2" />
-                <circle cx="30" cy="50" r="14" fill="#1e293b" stroke="#10b981" strokeWidth="2" />
-                <text x="25" y="48" fill="#10b981" fontSize="10" fontWeight="bold">+</text>
-                <text x="26" y="60" fill="#10b981" fontSize="10" fontWeight="bold">-</text>
-                <text x="15" y="58" fill="#10b981" fontSize="10" fontWeight="bold">V</text>
-                <path d="M 130 20 L 140 10 L 150 30 L 160 10 L 170 30 L 180 20" fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-                <text x="140" y="8" fill="#f59e0b" fontSize="9" fontWeight="bold">Resistor (R)</text>
-                <path d="M 220 20 L 230 18 L 220 16" fill="#38bdf8" />
-                <text x="240" y="16" fill="#38bdf8" fontSize="9" fontWeight="bold">Current (I) →</text>
+              <svg className="w-full h-full" viewBox="0 0 320 110">
+                <circle cx="60" cy="55" r="22" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="2" />
+                <text x="50" y="60" fill="#ffffff" fontSize="11" fontWeight="bold">Na⁺</text>
+                <text x="95" y="60" fill="#94a3b8" fontSize="18" fontWeight="bold">+</text>
+                <circle cx="140" cy="55" r="22" fill="#064e3b" stroke="#34d399" strokeWidth="2" />
+                <text x="130" y="60" fill="#ffffff" fontSize="11" fontWeight="bold">Cl⁻</text>
+                <line x1="175" y1="55" x2="215" y2="55" stroke="#f59e0b" strokeWidth="3" markerEnd="url(#arrow)" />
+                <rect x="230" y="35" width="70" height="40" rx="8" fill="#312e81" stroke="#818cf8" strokeWidth="2" />
+                <text x="245" y="60" fill="#ffffff" fontSize="12" fontWeight="bold">NaCl</text>
               </svg>
             </div>
             <p className="text-[10px] text-slate-400 text-center">
-              Closed loop voltage source driving electron flow through resistance.
+              Ionic lattice crystallization and charge neutralization equilibrium
             </p>
           </div>
         )}
 
-        {/* MODE 4B: BIOLOGY (CELLULAR & ORGANELLE STRUCTURE) */}
-        {visualType === "biology" && (
-          <div className="w-full h-full flex flex-col items-center justify-center p-2 space-y-1.5">
-            <div className="w-full max-w-xs h-28 border border-slate-700/80 rounded-lg p-2 bg-slate-900/90 flex items-center justify-center">
-              <svg viewBox="0 0 300 100" className="w-full h-full">
-                {/* Cell Membrane */}
-                <ellipse cx="150" cy="50" rx="130" ry="42" fill="#064e3b" fillOpacity="0.4" stroke="#10b981" strokeWidth="2" strokeDasharray="4 2" />
-                {/* Nucleus */}
-                <circle cx="110" cy="50" r="22" fill="#047857" stroke="#34d399" strokeWidth="2" />
-                <circle cx="110" cy="50" r="8" fill="#a7f3d0" />
-                <text x="88" y="53" fill="#ffffff" fontSize="8" fontWeight="bold">Nucleus</text>
-                {/* Mitochondria */}
-                <ellipse cx="200" cy="40" rx="20" ry="10" fill="#b45309" stroke="#f59e0b" strokeWidth="1.5" />
-                <text x="178" y="42" fill="#fef3c7" fontSize="7" fontWeight="bold">Mitochondria</text>
-                {/* Chloroplast / Vacuole */}
-                <ellipse cx="185" cy="65" rx="16" ry="8" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="1.5" />
-                <text x="170" y="67" fill="#dbeafe" fontSize="7" fontWeight="bold">Cytoplasm</text>
+        {/* MODE 4: CIRCUITS / SCHEMATIC DIAGRAM */}
+        {visualType === "diagram" && (
+          <div className="w-full h-full flex flex-col items-center justify-between p-1.5">
+            <p className="text-[11px] font-semibold text-cyan-400 text-center">
+              Closed Loop Circuit Topology
+            </p>
+            <div className="w-full max-w-sm h-36 relative flex items-center justify-center">
+              <svg className="w-full h-full" viewBox="0 0 280 110">
+                <rect x="30" y="15" width="220" height="80" fill="none" stroke="#0284c7" strokeWidth="2" rx="4" />
+                <circle cx="30" cy="55" r="14" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+                <text x="25" y="59" fill="#38bdf8" fontSize="11" fontWeight="bold">V</text>
+                <rect x="120" y="8" width="40" height="14" fill="#0f172a" stroke="#f59e0b" strokeWidth="2" />
+                <text x="133" y="19" fill="#f59e0b" fontSize="9" fontWeight="bold">R1</text>
+                <rect x="235" y="45" width="30" height="20" fill="#0f172a" stroke="#10b981" strokeWidth="2" />
+                <text x="242" y="58" fill="#10b981" fontSize="8" fontWeight="bold">Load</text>
               </svg>
             </div>
-            <p className="text-[10px] text-emerald-400 text-center font-medium">
-              Eukaryotic cellular architecture & functional organelle pathways.
+            <p className="text-[10px] text-slate-400 text-center">
+              I = V / R · Consistent current flow through closed circuit loop
             </p>
           </div>
         )}
 
-        {/* MODE 4C: CHEMISTRY (REACTION PATHWAY & ACTIVATION ENERGY) */}
-        {visualType === "chemistry" && (
-          <div className="w-full h-full flex flex-col items-center justify-center p-2 space-y-1.5">
-            <div className="w-full max-w-xs h-28 border border-slate-700/80 rounded-lg p-2 bg-slate-900/90 flex items-center justify-center">
-              <svg viewBox="0 0 300 100" className="w-full h-full">
-                {/* Axes */}
-                <line x1="30" y1="85" x2="280" y2="85" stroke="#64748b" strokeWidth="1.5" />
-                <line x1="30" y1="85" x2="30" y2="15" stroke="#64748b" strokeWidth="1.5" />
-                <text x="240" y="96" fill="#94a3b8" fontSize="7">Progress →</text>
-                <text x="8" y="20" fill="#94a3b8" fontSize="7" transform="rotate(-90 8,20)">Energy (E)</text>
-                {/* Reaction Curve: Reactants -> Barrier (Transition State) -> Products */}
-                <path d="M 40 65 Q 120 65 140 25 Q 160 25 180 80 L 270 80" fill="none" stroke="#a855f7" strokeWidth="2.5" />
-                {/* Labels */}
-                <circle cx="45" cy="65" r="3" fill="#38bdf8" />
-                <text x="40" y="58" fill="#38bdf8" fontSize="8" fontWeight="bold">Reactants</text>
-                <circle cx="150" cy="25" r="3" fill="#f43f5e" />
-                <text x="135" y="18" fill="#f43f5e" fontSize="8" fontWeight="bold">Transition State (Ea)</text>
-                <circle cx="260" cy="80" r="3" fill="#10b981" />
-                <text x="240" y="74" fill="#10b981" fontSize="8" fontWeight="bold">Products (ΔH &lt; 0)</text>
-              </svg>
-            </div>
-            <p className="text-[10px] text-purple-300 text-center font-medium">
-              Thermodynamic reaction coordinate & activation energy barrier.
-            </p>
-          </div>
-        )}
-
-        {/* MODE 5: MATH DERIVATION */}
+        {/* MODE 5: MATHEMATICAL DERIVATION */}
         {visualType === "math" && (
-          <div className="w-full h-full flex flex-col items-center justify-center space-y-2 text-center p-2">
-            <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-              <p className="font-mono text-sm sm:text-base font-bold text-emerald-400">
-                {visualSpec.formula || "Output = Driving Force / Opposing Constraints"}
-              </p>
-              <p className="text-[11px] text-slate-400">
-                {visualSpec.derivation_step || "Deterministic formulation derived from first principles."}
-              </p>
+          <div className="w-full h-full flex flex-col items-center justify-center p-3 space-y-2">
+            <span className="text-[11px] font-semibold text-slate-400">Formal Step-by-Step Derivation</span>
+            <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg font-mono text-xs text-amber-300 text-center w-full max-w-md shadow-inner space-y-1">
+              <p>Step 1:  V = I · R</p>
+              <p className="text-emerald-400">Step 2:  I = V / R</p>
+              <p className="text-cyan-400">Step 3:  P = V · I = I² · R = V² / R</p>
             </div>
+            <span className="text-[10px] text-slate-400">Derived from Joule heating & conservation of energy</span>
           </div>
         )}
 
-        {/* MODE 6: CODE RUNNER */}
+        {/* MODE 6: CODE SANDBOX */}
         {visualType === "code" && (
           <div className="w-full h-full flex flex-col justify-between p-2 space-y-1">
-            <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-              <span>Python 3.11</span>
+            <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-1">
+              <span>Python 3.11 Runnable Sandbox</span>
               <button
                 type="button"
                 onClick={handleRunCode}
                 disabled={isRunningCode}
-                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition"
               >
                 <Play className="w-2.5 h-2.5 fill-current" />
                 <span>{isRunningCode ? "Running..." : "Run"}</span>
               </button>
             </div>
-
-            <pre className="p-2 bg-slate-950 rounded border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
-              <code>{visualSpec.code_snippet || "def calculate_output(potential, resistance):\n    return potential / resistance\n\nprint(calculate_output(12, 4))"}</code>
+            <pre className="font-mono text-[11px] text-emerald-300 bg-slate-950 p-2 rounded overflow-x-auto flex-1 border border-slate-800">
+              {visualSpec.code_snippet || `def compute_current(voltage: float, resistance: float) -> float:\n    if resistance <= 0:\n        raise ValueError("Resistance must be positive")\n    return voltage / resistance\n\nprint(compute_current(12.0, 4.0)) # 3.0 Amperes`}
             </pre>
-
             {codeOutput && (
-              <div className="p-1.5 bg-slate-950/80 rounded text-[10px] font-mono text-slate-300 border border-slate-800">
+              <div className="p-1.5 bg-slate-900 border border-emerald-500/40 rounded text-[10px] font-mono text-emerald-400">
                 {codeOutput}
               </div>
             )}
           </div>
         )}
 
-        {/* MODE 7: TIMELINE / CHRONOLOGICAL */}
+        {/* MODE 7: HISTORICAL TIMELINE */}
         {visualType === "timeline" && (
-          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center space-y-2">
-            <p className="font-bold text-xs text-blue-400">Chronological Evolution & Milestones</p>
-            <div className="flex items-center gap-2 max-w-sm overflow-x-auto py-1">
-              <div className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-[10px] shrink-0">Stage 1: Axiom</div>
-              <div className="text-slate-500 text-xs">→</div>
-              <div className="px-2 py-1 rounded bg-blue-900/60 border border-blue-700 text-[10px] shrink-0 text-blue-300">Stage 2: Model</div>
-              <div className="text-slate-500 text-xs">→</div>
-              <div className="px-2 py-1 rounded bg-emerald-900/60 border border-emerald-700 text-[10px] shrink-0 text-emerald-300">Stage 3: Application</div>
+          <div className="w-full h-full flex flex-col items-center justify-between p-2">
+            <p className="text-[11px] font-semibold text-blue-400 text-center">
+              Historical Discovery Timeline
+            </p>
+            <div className="w-full max-w-sm h-32 relative flex items-center justify-center">
+              <svg className="w-full h-full" viewBox="0 0 280 80">
+                <line x1="20" y1="40" x2="260" y2="40" stroke="#3b82f6" strokeWidth="2" />
+                <circle cx="50" cy="40" r="5" fill="#60a5fa" />
+                <text x="35" y="25" fill="#93c5fd" fontSize="9" fontWeight="bold">1827</text>
+                <text x="30" y="60" fill="#94a3b8" fontSize="8">Discovery</text>
+                <circle cx="140" cy="40" r="5" fill="#60a5fa" />
+                <text x="125" y="25" fill="#93c5fd" fontSize="9" fontWeight="bold">1845</text>
+                <text x="120" y="60" fill="#94a3b8" fontSize="8">Kirchhoff</text>
+                <circle cx="230" cy="40" r="5" fill="#60a5fa" />
+                <text x="215" y="25" fill="#93c5fd" fontSize="9" fontWeight="bold">1865</text>
+                <text x="210" y="60" fill="#94a3b8" fontSize="8">Maxwell</text>
+              </svg>
             </div>
           </div>
         )}

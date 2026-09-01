@@ -14,7 +14,8 @@ import {
   ArrowRight,
   EyeOff,
   Eye,
-  Sparkles
+  Sparkles,
+  Play
 } from "lucide-react";
 
 interface PlanPageProps {
@@ -64,7 +65,6 @@ export default function LessonPlanPreviewPage({ params }: PlanPageProps) {
     setError(null);
     try {
       await api.updateLessonPlan(lessonId, segments);
-
       const session = await api.createSession(lessonId);
       router.push(`/sessions/${session.id}`);
     } catch (err: any) {
@@ -82,24 +82,24 @@ export default function LessonPlanPreviewPage({ params }: PlanPageProps) {
   const getVisualIcon = (type: string) => {
     switch (type) {
       case "chart":
-        return <LineChart className="w-3.5 h-3.5 text-emerald-600" />;
+        return <LineChart className="w-4 h-4 text-emerald-600" />;
       case "math":
-        return <Layers className="w-3.5 h-3.5 text-indigo-600" />;
+        return <Layers className="w-4 h-4 text-indigo-600" />;
       case "code":
-        return <Code2 className="w-3.5 h-3.5 text-amber-600" />;
+        return <Code2 className="w-4 h-4 text-amber-600" />;
       case "diagram":
-        return <Cpu className="w-3.5 h-3.5 text-cyan-600" />;
+        return <Cpu className="w-4 h-4 text-cyan-600" />;
       default:
-        return <Sparkles className="w-3.5 h-3.5 text-purple-600" />;
+        return <Sparkles className="w-4 h-4 text-purple-600" />;
     }
   };
 
   if (isLoading) {
     return (
       <AppShell pageTitle={t("plan.structure")}>
-        <div className="max-w-2xl mx-auto py-12 text-center space-y-2">
+        <div className="max-w-2xl mx-auto py-16 text-center space-y-3">
           <div className="w-6 h-6 border-2 border-[#0f172a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500">Loading structured curriculum...</p>
+          <p className="text-sm text-slate-500 font-medium">Loading structured curriculum roadmap...</p>
         </div>
       </AppShell>
     );
@@ -107,91 +107,112 @@ export default function LessonPlanPreviewPage({ params }: PlanPageProps) {
 
   return (
     <AppShell pageTitle={t("plan.structure")}>
-      <div className="max-w-2xl mx-auto space-y-4 animate-in fade-in duration-200">
-        {/* Header Summary */}
-        <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-xs">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              {t("plan.structure")}
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header Summary with Pill Badge and Pill CTA */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-[#0f172a] text-white rounded-2xl border border-slate-800">
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-slate-300 bg-slate-800 px-3 py-0.5 rounded-full border border-slate-700">
+              Curriculum Roadmap
             </span>
-            <h2 className="font-heading text-base sm:text-lg font-bold text-[#0b1c30] mt-1">
+            <h1 className="font-heading text-xl sm:text-2xl font-bold text-white tracking-tight">
               {lesson?.topic || "Study Material Mastery"}
-            </h2>
+            </h1>
+            <p className="text-xs text-slate-300">
+              {activeSegments.length} concept modules · {totalMinutes} min estimated runtime
+            </p>
           </div>
 
-          <div className="px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
-            <Clock className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{totalMinutes} min</span>
-          </div>
-        </div>
-
-        {/* Segment Timeline List */}
-        <div className="space-y-2">
-          {segments.map((seg, idx) => (
-            <div
-              key={idx}
-              className={`p-3.5 rounded-xl border transition flex items-center justify-between gap-3 ${
-                seg.skipped
-                  ? "bg-slate-50 border-slate-200 opacity-40"
-                  : "bg-white border-slate-200 shadow-xs"
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
-                  {seg.order || idx + 1}
-                </span>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    {getVisualIcon(seg.visual_type)}
-                    <h4 className={`text-xs sm:text-sm font-bold truncate ${seg.skipped ? "line-through text-slate-400" : "text-[#0b1c30]"}`}>
-                      {seg.concept}
-                    </h4>
-                  </div>
-                  {seg.learning_objective && (
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{seg.learning_objective}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                  {seg.target_time}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => toggleSkip(idx)}
-                  className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
-                  title={seg.skipped ? "Include segment" : "Skip segment"}
-                >
-                  {seg.skipped ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Start Button */}
-        <div className="pt-2">
           <button
             type="button"
             onClick={handleStartClass}
             disabled={isStarting || activeSegments.length === 0}
-            className="w-full py-3 bg-[#0f172a] hover:bg-slate-800 text-white font-heading font-bold text-xs sm:text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shrink-0 shadow-xs"
           >
             {isStarting ? (
               <>
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Launching Session...</span>
+                <Sparkles className="w-4 h-4 animate-spin" />
+                <span>Launching...</span>
               </>
             ) : (
               <>
-                <span>{t("plan.start_class_btn")}</span>
-                <ArrowRight className="w-4 h-4 text-emerald-400" />
+                <Play className="w-4 h-4 fill-current" />
+                <span>Enter Live Classroom</span>
               </>
             )}
           </button>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800">
+            {error}
+          </div>
+        )}
+
+        {/* Plan Segments List */}
+        <div className="space-y-3">
+          <h2 className="font-heading font-bold text-sm text-[#0f172a]">
+            Lesson Sequence & Teaching Visuals
+          </h2>
+
+          <div className="space-y-3">
+            {segments.map((seg, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-2xl border transition flex items-center justify-between gap-4 ${
+                  seg.skipped
+                    ? "bg-slate-50 border-slate-200 opacity-60"
+                    : "bg-white border-slate-200 shadow-xs"
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-xs ${
+                      seg.skipped ? "bg-slate-200 text-slate-400" : "bg-slate-100 text-[#0f172a]"
+                    }`}
+                  >
+                    0{seg.order}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3
+                        className={`font-heading font-semibold text-sm truncate ${
+                          seg.skipped ? "text-slate-400 line-through" : "text-[#0f172a]"
+                        }`}
+                      >
+                        {seg.concept}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        {seg.target_time}
+                      </span>
+                      <span className="flex items-center gap-1 font-medium capitalize">
+                        {getVisualIcon(seg.visual_type)}
+                        {seg.visual_type} Visual
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Toggle Skip Pill Button */}
+                <button
+                  type="button"
+                  onClick={() => toggleSkip(idx)}
+                  className={`p-2 rounded-full text-xs font-medium transition cursor-pointer interactive-tactile shrink-0 ${
+                    seg.skipped
+                      ? "text-slate-400 hover:text-slate-700 bg-slate-100"
+                      : "text-slate-500 hover:text-slate-900 bg-slate-50 hover:bg-slate-100"
+                  }`}
+                  title={seg.skipped ? "Include segment" : "Skip segment"}
+                >
+                  {seg.skipped ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </AppShell>

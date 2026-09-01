@@ -2,84 +2,97 @@
 
 :root {
   --font-heading: 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Bharat Academix Design Tokens */
-  --surface: #f8f9ff;
-  --surface-dim: #cbdbf5;
-  --surface-bright: #f8f9ff;
-  --surface-container-lowest: #ffffff;
-  --surface-container-low: #eff4ff;
-  --surface-container: #e5eeff;
-  --surface-container-high: #dce9ff;
-  --surface-container-highest: #d3e4fe;
+  /* Bharat Academix Strict Design Tokens */
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-subtle: #f1f5f9;
+  --bg-surface-navy: #0f172a;
   
-  --on-surface: #0b1c30;
-  --on-surface-variant: #45464d;
-  --outline: #76777d;
-  --outline-variant: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
+  --text-on-navy: #ffffff;
 
-  --primary: #0f172a;
-  --on-primary: #ffffff;
-  --primary-container: #1e293b;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-focus: #0f172a;
 
-  --secondary: #10b981;
-  --on-secondary: #ffffff;
-  --secondary-container: #ecfdf5;
-  --on-secondary-container: #006c49;
+  /* Semantic Action / Status Tokens */
+  --progression-emerald: #047857;
+  --progression-emerald-light: #ecfdf5;
+  --progression-emerald-border: #10b981;
 
-  --tertiary: #f59e0b;
-  --on-tertiary: #ffffff;
-  --tertiary-container: #fef3c7;
-  --on-tertiary-container: #92400e;
+  --revision-amber: #d97706;
+  --revision-amber-light: #fef3c7;
+  --revision-amber-border: #f59e0b;
 
-  --background: #f8fafc;
-  --foreground: #0b1c30;
+  --alert-rose: #be123c;
+  --alert-rose-light: #fff1f2;
 }
 
 body {
-  background-color: #f8fafc;
-  color: #0b1c30;
-  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6, .font-heading {
-  font-family: var(--font-heading), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-heading);
   letter-spacing: -0.02em;
 }
 
-/* Tactile Elevation Shadows */
-.card-elevation-1 {
+/* Global Focus-Visible Keyboard Ring */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #0f172a;
+}
+
+/* Attention Priority Surfaces */
+.surface-p0 {
   background-color: #ffffff;
-  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.05), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  border: 2px solid #047857;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.surface-p1 {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1px solid #1e293b;
+}
+
+.surface-p2 {
+  background-color: #ffffff;
   border: 1px solid #e2e8f0;
 }
 
-.card-elevation-2 {
-  background-color: #ffffff;
-  box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 4px 6px -4px rgb(15 23 42 / 0.05);
-  border: 1px solid #cbd5e1;
+.surface-p2-receded {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
 }
 
-/* Learning Cards with accent left borders */
-.learning-card-completed {
-  background-color: #ffffff;
-  border-left: 6px solid #10b981;
-  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.05);
+/* Tactile Clickable Micro-Feedback */
+.interactive-tactile {
+  transition: transform 0.1s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+.interactive-tactile:active {
+  transform: scale(0.99);
 }
 
-.learning-card-active {
-  background-color: #ffffff;
-  border-left: 6px solid #f59e0b;
-  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.05);
-}
-
-/* Tactile Pressable Button */
-.btn-tactile {
-  transition: all 0.15s ease-in-out;
-}
-.btn-tactile:active {
-  transform: translateY(1px);
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

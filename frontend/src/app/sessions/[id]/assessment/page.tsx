@@ -87,38 +87,38 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
 
   if (isLoading || !assessment) {
     return (
-      <AppShell pageTitle={t("exam.title")}>
+      <AppShell pageTitle="Mastery Assessment">
         <div className="max-w-xl mx-auto py-16 text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-[#0f172a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500">Preparing your final check questions...</p>
+          <div className="w-6 h-6 border-2 border-[#0f172a] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-slate-500 font-medium">Preparing diagnostic mastery questions...</p>
         </div>
       </AppShell>
     );
   }
 
   return (
-    <AppShell pageTitle={t("exam.title")}>
-      <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
-        {/* Header with progress */}
-        <div className="flex items-center justify-between p-5 bg-white rounded-2xl border border-slate-200 card-elevation-1">
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+    <AppShell pageTitle="Mastery Assessment">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Progress Header Capsule */}
+        <div className="flex items-center justify-between p-4 sm:px-6 sm:py-3.5 bg-white rounded-full border border-slate-200 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="p-2 rounded-full bg-slate-100 text-[#0f172a]">
               <FileCheck2 className="w-4 h-4" />
             </span>
-            <span className="font-heading font-bold text-sm text-[#0b1c30]">
-              {isReviewMode ? t("exam.review") : `${t("exam.question")} ${currentIndex + 1} / ${questions.length}`}
+            <span className="font-heading font-bold text-sm text-[#0f172a]">
+              {isReviewMode ? "Review All Answers" : `Question ${currentIndex + 1} of ${questions.length}`}
             </span>
           </div>
 
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
             {questions.map((_, idx) => (
               <span
                 key={idx}
-                className={`w-3 h-3 rounded-full transition ${
+                className={`w-2.5 h-2.5 rounded-full transition ${
                   idx === currentIndex
                     ? "bg-[#0f172a] ring-2 ring-slate-300"
                     : answers[questions[idx].id]
-                    ? "bg-emerald-500"
+                    ? "bg-emerald-600"
                     : "bg-slate-200"
                 }`}
               />
@@ -127,7 +127,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-2">
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-full text-xs text-rose-800 flex items-center gap-2 px-6">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{error}</span>
           </div>
@@ -135,137 +135,129 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
 
         {/* 1. STATE: Single Question Flow */}
         {!isReviewMode && currentQ && (
-          <div className="p-8 bg-white rounded-2xl border border-slate-200 card-elevation-1 space-y-6">
+          <div className="p-6 sm:p-8 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-6">
             <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3.5 py-1 rounded-full">
                 {currentQ.concept}
               </span>
-              <h3 className="font-heading text-base sm:text-lg font-bold text-[#0b1c30] leading-relaxed">
+              <h2 className="font-heading font-bold text-base sm:text-lg text-[#0f172a] leading-snug pt-2">
                 {currentQ.prompt}
-              </h3>
+              </h2>
             </div>
 
-            {/* MCQ Options */}
-            {currentQ.options && (
-              <div className="space-y-3 pt-2">
-                {currentQ.options.map((opt, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectAnswer(opt)}
-                    className={`w-full text-left p-4 rounded-xl border text-xs sm:text-sm font-medium transition flex items-start gap-3.5 cursor-pointer btn-tactile ${
-                      answers[currentQ.id] === opt
-                        ? "bg-[#eff4ff] border-[#0f172a] text-[#0b1c30] ring-1 ring-[#0f172a] font-semibold shadow-xs"
-                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                      {String.fromCharCode(65 + idx)}
-                    </span>
-                    <span className="leading-snug">{opt}</span>
-                  </button>
-                ))}
+            {/* Options List (Capsule Pills) */}
+            {currentQ.options && currentQ.options.length > 0 && (
+              <div className="space-y-2.5">
+                {currentQ.options.map((opt, idx) => {
+                  const isSelected = answers[currentQ.id] === opt;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectAnswer(opt)}
+                      className={`w-full px-5 py-3.5 rounded-full border text-left text-sm font-medium transition cursor-pointer interactive-tactile flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? "bg-slate-50 border-[#0f172a] text-[#0f172a] font-semibold ring-1 ring-[#0f172a]"
+                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>{opt}</span>
+                      <span
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          isSelected ? "border-[#0f172a] bg-[#0f172a]" : "border-slate-300"
+                        }`}
+                      >
+                        {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
-            {/* Free text input if not MCQ */}
-            {!currentQ.options && (
-              <textarea
-                rows={3}
-                value={answers[currentQ.id] || ""}
-                onChange={(e) => handleSelectAnswer(e.target.value)}
-                placeholder="Type your answer..."
-                className="w-full p-4 bg-[#f8f9ff] border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
-              />
-            )}
-
-            {/* Navigation buttons */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+            {/* Navigation Buttons (Capsule Pills) */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
               <button
                 type="button"
                 onClick={handlePrev}
                 disabled={currentIndex === 0}
-                className="px-4 py-2.5 bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 btn-tactile"
+                className="px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 rounded-full transition interactive-tactile flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>{t("exam.previous")}</span>
+                <span>Previous</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleNext}
                 disabled={!answers[currentQ.id]}
-                className="px-6 py-3 bg-[#0f172a] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 text-white text-xs sm:text-sm font-heading font-bold rounded-xl shadow transition flex items-center gap-2 btn-tactile"
+                className="px-6 py-2 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <span>{currentIndex === questions.length - 1 ? t("exam.review") : t("exam.next")}</span>
-                <ArrowRight className="w-4 h-4 text-emerald-400" />
+                <span>{currentIndex === questions.length - 1 ? "Review Answers" : "Next Question"}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
               </button>
             </div>
           </div>
         )}
 
-        {/* 2. STATE: Review Mode Summary */}
+        {/* 2. STATE: Review Mode (Capsule Pill Rows) */}
         {isReviewMode && (
-          <div className="p-8 bg-white rounded-2xl border border-slate-200 card-elevation-1 space-y-6">
-            <div>
-              <h3 className="font-heading text-lg font-bold text-[#0b1c30]">{t("exam.review")}</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                You can review or edit any answer before server-side evaluation.
+          <div className="p-6 sm:p-8 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-6">
+            <div className="space-y-1">
+              <h2 className="font-heading font-bold text-lg text-[#0f172a]">
+                Review Your Submissions
+              </h2>
+              <p className="text-xs text-slate-500">
+                Ensure all questions are answered before submitting for diagnostic mastery evaluation.
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {questions.map((q, idx) => (
                 <div
                   key={q.id}
-                  className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-start justify-between gap-4 text-xs"
+                  onClick={() => {
+                    setCurrentIndex(idx);
+                    setIsReviewMode(false);
+                  }}
+                  className="px-5 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-between gap-3 cursor-pointer transition interactive-tactile"
                 >
-                  <div className="space-y-1 truncate">
-                    <p className="font-bold text-[#0b1c30] truncate">
-                      {idx + 1}. {q.prompt}
-                    </p>
-                    <p className="text-emerald-700 truncate font-mono text-[11px] font-semibold">
-                      Answer: {answers[q.id] || "Not answered"}
+                  <div className="min-w-0 space-y-0.5">
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      Q0{idx + 1} · {q.concept}
+                    </span>
+                    <p className="text-xs font-medium text-[#0f172a] truncate">
+                      {answers[q.id] || "No answer selected"}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCurrentIndex(idx);
-                      setIsReviewMode(false);
-                    }}
-                    className="text-xs text-[#0f172a] hover:text-emerald-600 font-bold underline shrink-0 cursor-pointer"
-                  >
+                  <span className="text-xs font-semibold text-[#0f172a] px-3 py-1 bg-white border border-slate-200 rounded-full shrink-0">
                     Edit
-                  </button>
+                  </span>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setIsReviewMode(false)}
-                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl btn-tactile"
+                className="px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-full transition interactive-tactile cursor-pointer"
               >
-                {t("exam.previous")}
+                Back to Questions
               </button>
 
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-7 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs sm:text-sm rounded-xl shadow-lg transition btn-tactile flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 {isSubmitting ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Grading Assessment...</span>
-                  </>
+                  <span>Evaluating Mastery...</span>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>{t("exam.submit")}</span>
+                    <span>Submit Diagnostic Exam</span>
                   </>
                 )}
               </button>

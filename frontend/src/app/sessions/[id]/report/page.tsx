@@ -12,11 +12,9 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
-  RotateCcw,
   ChevronDown,
   ChevronUp,
-  LayoutDashboard,
-  Zap
+  LayoutDashboard
 } from "lucide-react";
 
 interface ReportPageProps {
@@ -43,9 +41,9 @@ export default function LearningReportPage({ params }: ReportPageProps) {
         const r = await api.getReport(sessionId);
         setReport(r);
 
-        if (r.score >= 75) {
+        if (r.score >= 70) {
           confetti({
-            particleCount: 70,
+            particleCount: 60,
             spread: 60,
             origin: { y: 0.6 },
           });
@@ -67,149 +65,159 @@ export default function LearningReportPage({ params }: ReportPageProps) {
 
   if (isLoading || !report) {
     return (
-      <AppShell pageTitle={t("report.title")}>
-        <div className="max-w-xl mx-auto py-12 text-center space-y-2">
+      <AppShell pageTitle="Diagnostic Learning Report">
+        <div className="max-w-xl mx-auto py-16 text-center space-y-3">
           <div className="w-6 h-6 border-2 border-[#0f172a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500">Compiling report...</p>
+          <p className="text-sm text-slate-500 font-medium">Compiling personalized mastery assessment...</p>
         </div>
       </AppShell>
     );
   }
 
   const scorePct = report.score;
-  const isPassing = scorePct >= 65;
+  const isMastered = scorePct >= 70;
 
   return (
-    <AppShell pageTitle={t("report.title")}>
-      <div className="max-w-2xl mx-auto space-y-4 animate-in fade-in duration-200">
-        {/* Score Header */}
-        <div className="p-6 bg-[#0f172a] text-white rounded-xl text-center space-y-2 shadow-md">
+    <AppShell pageTitle="Diagnostic Learning Report">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Score Header (P1 Surface Capsule) */}
+        <div className="p-6 bg-[#0f172a] text-white rounded-3xl text-center space-y-2 shadow-sm border border-slate-800">
           <div className="flex items-center justify-center gap-2">
             <Trophy className="w-5 h-5 text-amber-400" />
-            <h2 className="font-heading text-3xl font-black text-white">
+            <h1 className="font-heading text-4xl font-extrabold text-white tracking-tight">
               {scorePct}%
-            </h2>
+            </h1>
           </div>
-          <p className="text-xs text-emerald-300 font-bold">
-            {scorePct >= 80 ? "Mastery Achieved" : scorePct >= 60 ? "Solid Progress" : "Revision Recommended"}
+          <p className="text-xs font-semibold text-emerald-400">
+            {isMastered ? "Concept Mastery Verified" : "Revision & Targeted Practice Recommended"}
           </p>
-          <p className="text-[11px] text-slate-400">
-            {report.correct_answers} of {report.total_questions} questions correct
+          <p className="text-xs text-slate-400">
+            {report.correct_answers} of {report.total_questions} questions answered correctly
           </p>
         </div>
 
-        {/* 2-Column Mastery vs Revision */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{t("report.mastered_concepts")}</span>
+        {/* 2-Column Mastery vs Revision Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-6 bg-white border border-slate-200 rounded-3xl space-y-3 shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Mastered Concepts</span>
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-wrap gap-1.5">
               {report.strong_areas.map((area, idx) => (
-                <p key={idx} className="text-xs text-emerald-950 font-medium truncate">
-                  • {area}
-                </p>
+                <span key={idx} className="px-3 py-1 bg-emerald-50 text-slate-800 border border-emerald-200 rounded-full text-xs font-medium">
+                  {area}
+                </span>
               ))}
             </div>
           </div>
 
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 uppercase tracking-wider">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-              <span>{t("report.needs_improvement")}</span>
+          <div className="p-6 bg-white border border-slate-200 rounded-3xl space-y-3 shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              <span>Target Revision Areas</span>
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-wrap gap-1.5">
               {report.weak_areas.length > 0 ? (
                 report.weak_areas.map((area, idx) => (
-                  <p key={idx} className="text-xs text-amber-950 font-medium truncate">
-                    • {area}
-                  </p>
+                  <span key={idx} className="px-3 py-1 bg-amber-50 text-slate-800 border border-amber-200 rounded-full text-xs font-medium">
+                    {area}
+                  </span>
                 ))
               ) : (
-                <p className="text-xs text-slate-500 italic">No gaps detected!</p>
+                <p className="text-xs text-slate-400 italic">No cognitive misconceptions detected!</p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Recommended Next Step */}
+        {/* Recommended Next Step Capsule */}
         {report.recommended_next_topic && (
-          <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs flex items-center justify-between gap-3">
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-[10px] font-bold uppercase text-emerald-700">Next Recommended Topic</span>
-              <h4 className="font-heading font-bold text-xs sm:text-sm text-[#0b1c30] truncate">
+          <div className="px-6 py-4 bg-white border border-slate-200 rounded-full shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 block">
+                Recommended Next Step
+              </span>
+              <h2 className="font-heading font-bold text-sm text-[#0f172a] truncate">
                 {report.recommended_next_topic}
-              </h4>
+              </h2>
             </div>
 
             <button
               type="button"
               onClick={() => handleStartRecommended(report.recommended_next_topic!)}
-              className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
             >
-              <span>{t("report.start_topic")}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Start Next Lesson</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* Question Breakdown */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
-          <button
-            type="button"
-            onClick={() => setShowBreakdown(!showBreakdown)}
-            className="w-full flex items-center justify-between text-xs font-bold text-[#0b1c30] cursor-pointer"
-          >
-            <span>{t("report.full_breakdown")} ({report.detailed_breakdown.length})</span>
-            {showBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+        {/* Detailed Question Diagnostic Breakdown */}
+        {report.detailed_breakdown && report.detailed_breakdown.length > 0 && (
+          <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-xs space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowBreakdown(!showBreakdown)}
+              className="w-full flex items-center justify-between text-xs font-bold text-[#0f172a] cursor-pointer"
+            >
+              <span>Detailed Question Diagnostic Log</span>
+              {showBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
 
-          {showBreakdown && (
-            <div className="space-y-2 pt-1">
-              {report.detailed_breakdown.map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`p-3 rounded-lg border text-xs space-y-1 ${
-                    item.is_correct ? "bg-slate-50 border-slate-200" : "bg-amber-50/50 border-amber-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-[#0b1c30] truncate">
-                      {idx + 1}. {item.prompt}
-                    </p>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.is_correct ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                      {item.is_correct ? "Correct" : "Review"}
-                    </span>
+            {showBreakdown && (
+              <div className="pt-3 border-t border-slate-100 space-y-2.5 animate-in fade-in duration-150">
+                {report.detailed_breakdown.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-2xl border text-xs space-y-2 ${
+                      item.is_correct ? "bg-slate-50 border-slate-200" : "bg-rose-50/50 border-rose-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-500">
+                        Q0{idx + 1} · {item.concept}
+                      </span>
+                      <span
+                        className={`font-bold px-2.5 py-0.5 rounded-full ${
+                          item.is_correct ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                        }`}
+                      >
+                        {item.is_correct ? "✓ Correct" : "✗ Needs Review"}
+                      </span>
+                    </div>
+
+                    <p className="font-semibold text-[#0f172a]">{item.prompt}</p>
+
+                    <div className="space-y-1 text-slate-600">
+                      <p>
+                        <span className="font-semibold text-slate-700">Your Answer:</span>{" "}
+                        {item.student_answer}
+                      </p>
+                      {!item.is_correct && (
+                        <p>
+                          <span className="font-semibold text-emerald-800">Correct Answer:</span>{" "}
+                          {item.correct_answer}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-mono">
-                    Answer: <span className={item.is_correct ? "text-emerald-700" : "text-amber-700"}>{item.student_answer}</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-1">
+        {/* Return to Dashboard */}
+        <div className="flex items-center justify-center pt-2">
           <Link
             href="/"
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0b1c30] text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
+            className="px-5 py-2 bg-slate-100 hover:bg-[#0f172a] hover:text-white rounded-full text-xs font-bold text-[#0f172a] flex items-center gap-2 transition interactive-tactile"
           >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>{t("report.back_dashboard")}</span>
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Return to Student Dashboard</span>
           </Link>
-
-          {!isPassing && (
-            <Link
-              href={`/sessions/${sessionId}/assessment`}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{t("report.retake")}</span>
-            </Link>
-          )}
         </div>
       </div>
     </AppShell>

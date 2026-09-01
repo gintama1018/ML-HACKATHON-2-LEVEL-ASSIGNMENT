@@ -28,6 +28,9 @@ backend/uploads/
 # Video & Generated Media
 static/videos/*.mp4
 backend/static/videos/*.mp4
+backend/static/videos/*.mp3
+backend/static/videos/*.wav
+backend/static/videos/*.aac
 
 # Environment Variables
 .env

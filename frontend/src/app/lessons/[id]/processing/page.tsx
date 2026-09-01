@@ -11,8 +11,7 @@ import {
   ArrowRight,
   BookOpen,
   Layers,
-  AlertCircle,
-  RotateCcw
+  AlertCircle
 } from "lucide-react";
 
 interface ProcessingPageProps {
@@ -34,7 +33,6 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
   useEffect(() => {
     const jobId = sessionStorage.getItem("current_analysis_job_id");
     if (!jobId) {
-      // Fallback direct status check
       api.getMaterial(materialId).then((mat) => {
         if (mat.extracted_summary) {
           setSummary(mat.extracted_summary);
@@ -81,7 +79,6 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
       const student = await api.getDefaultStudent();
       const profileId = sessionStorage.getItem("current_profile_id");
 
-      // Generate lesson from analyzed material
       const lesson = await api.generateLesson({
         student_id: student.id,
         source_type: "material",
@@ -98,126 +95,113 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
 
   const stages = [
     { label: "Reading & Parsing File", minProgress: 25 },
-    { label: "Chunking & Structuring", minProgress: 50 },
-    { label: "Vector Embedding & Chroma Index", minProgress: 75 },
-    { label: "Extracting Pedagogical Concepts", minProgress: 90 },
+    { label: "1500-Char Semantic Chunking", minProgress: 50 },
+    { label: "384-Dim ChromaDB Vector Indexing", minProgress: 75 },
+    { label: "Pedagogical Knowledge Synthesis", minProgress: 100 },
   ];
 
   return (
-    <AppShell pageTitle="Content Understanding">
-      <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-300">
-        <div className="text-center space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">Step 3 of 3</span>
-          <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">
-            Understanding your material
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Our AI Content Analyzer is extracting key concepts, chapter structures, and building vector embeddings.
+    <AppShell pageTitle="Analyzing Document">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header with Pill Badge */}
+        <div className="p-6 bg-[#0f172a] text-white rounded-2xl border border-slate-800 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-300 bg-slate-800 px-3 py-0.5 rounded-full border border-slate-700">
+              RAG Ingestion Pipeline
+            </span>
+          </div>
+
+          <h1 className="font-heading text-xl sm:text-2xl font-bold text-white tracking-tight">
+            {jobStatus === "ready" ? "Document Analysis Complete" : "Analyzing Educational Document"}
+          </h1>
+
+          <p className="text-xs text-slate-300">
+            {stageMessage}...
           </p>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-3">
+            <div
+              className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-950/60 border border-rose-500/40 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-rose-300 text-xs font-bold">
-              <AlertCircle className="w-4 h-4 text-rose-400" />
-              <span>{error}</span>
-            </div>
-            <button
-              onClick={() => router.push("/lessons/new")}
-              className="px-3 py-1.5 bg-rose-900/60 hover:bg-rose-800 text-white rounded-lg text-xs font-semibold"
-            >
-              Switch to Topic Mode
-            </button>
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Multi-Stage Stepped Progress Bar */}
-        <div className="p-6 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-2xl space-y-5">
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-indigo-300">{stageMessage}</span>
-              <span className="text-slate-400">{progress}%</span>
-            </div>
-            <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
-              <div
-                style={{ width: `${progress}%` }}
-                className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-500 shadow"
-              />
-            </div>
-          </div>
+        {/* Multi-Stage Breakdown */}
+        <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
+          <h2 className="font-heading font-bold text-sm text-[#0f172a]">
+            Ingestion Pipeline Stages
+          </h2>
 
-          {/* Checklist of stages */}
-          <div className="space-y-2.5 pt-2">
-            {stages.map((st, idx) => (
-              <div key={idx} className="flex items-center gap-3 text-xs">
-                {progress >= st.minProgress ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <div className="w-4 h-4 rounded-full border-2 border-slate-700 shrink-0" />
-                )}
-                <span className={progress >= st.minProgress ? "text-slate-200 font-medium" : "text-slate-500"}>
-                  {st.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+          <div className="space-y-2.5">
+            {stages.map((stg, idx) => {
+              const isDone = progress >= stg.minProgress;
+              const isCurrent = progress < stg.minProgress && (idx === 0 || progress >= stages[idx - 1].minProgress);
 
-        {/* "Here's what I found" Proof Card (Appears once ready) */}
-        {summary && jobStatus === "ready" && (
-          <div className="p-6 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl shadow-xl space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Here&apos;s what the AI understood:</span>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Detected Subject Title</p>
-                <p className="text-sm font-bold text-slate-100">{summary.title || "Study Material"}</p>
-              </div>
-
-              {summary.key_concepts && (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Extracted Key Concepts
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {summary.key_concepts.map((concept: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 bg-slate-900 border border-indigo-500/20 text-indigo-200 text-xs rounded-lg font-medium"
-                      >
-                        {concept}
-                      </span>
-                    ))}
+              return (
+                <div
+                  key={idx}
+                  className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition ${
+                    isDone
+                      ? "bg-slate-50 border-slate-200 text-slate-800 font-medium"
+                      : isCurrent
+                      ? "bg-white border-emerald-600 shadow-xs font-semibold"
+                      : "bg-slate-50/50 border-slate-200 text-slate-400"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {isDone ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : isCurrent ? (
+                      <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border border-slate-300 shrink-0" />
+                    )}
+                    <span>{stg.label}</span>
                   </div>
-                </div>
-              )}
-            </div>
 
-            <div className="pt-3 border-t border-indigo-500/20 flex justify-end">
+                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                    isDone ? "bg-emerald-50 text-emerald-800" : isCurrent ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {isDone ? "Completed" : isCurrent ? "Processing" : "Queued"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Action on Complete with Pill Button */}
+          {jobStatus === "ready" && (
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
               <button
                 type="button"
                 onClick={handleContinueToPlan}
                 disabled={isGeneratingLesson}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 {isGeneratingLesson ? (
                   <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <Sparkles className="w-4 h-4 animate-spin" />
                     <span>Structuring Plan...</span>
                   </>
                 ) : (
                   <>
-                    <span>Continue to Lesson Plan</span>
+                    <span>Proceed to Lesson Structure</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </AppShell>
   );

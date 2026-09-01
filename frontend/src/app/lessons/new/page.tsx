@@ -88,86 +88,86 @@ export default function CreateLessonPage() {
 
   return (
     <AppShell pageTitle={t("create.title")}>
-      <div className="max-w-2xl mx-auto space-y-5 animate-in fade-in duration-200">
+      <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              {t("create.step")}
-            </span>
-            <h2 className="font-heading text-lg sm:text-xl font-bold text-[#0b1c30] mt-1">
-              {t("create.title")}
-            </h2>
-          </div>
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-slate-500">
+            Step 1 of 3 · Source Content
+          </span>
+          <h1 className="font-heading text-xl sm:text-2xl font-bold text-[#0f172a] tracking-tight">
+            {t("create.title")}
+          </h1>
+          <p className="text-sm text-slate-600">
+            Choose whether to enter a subject directly or upload lecture notes and textbook chapters.
+          </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Tabbed Creation Card */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          {/* Mode Switcher Tabs */}
-          <div className="flex border-b border-slate-200 bg-slate-50/70 p-1 gap-1">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {/* Mode Switcher Pills */}
+          <div className="flex border-b border-slate-200 bg-slate-50 p-2 gap-2">
             <button
               type="button"
               onClick={() => setMode("topic")}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2 px-4 rounded-full text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer interactive-tactile ${
                 mode === "topic"
-                  ? "bg-white text-[#0b1c30] shadow-xs border border-slate-200"
+                  ? "bg-white text-[#0f172a] shadow-xs border border-slate-200 font-bold"
                   : "text-slate-500 hover:text-slate-900"
               }`}
             >
               <Lightbulb className="w-4 h-4 text-amber-500" />
-              <span>{t("create.topic_title")}</span>
+              <span>Enter Subject or Topic</span>
             </button>
 
             <button
               type="button"
               onClick={() => setMode("upload")}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2 px-4 rounded-full text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer interactive-tactile ${
                 mode === "upload"
-                  ? "bg-white text-[#0b1c30] shadow-xs border border-slate-200"
+                  ? "bg-white text-[#0f172a] shadow-xs border border-slate-200 font-bold"
                   : "text-slate-500 hover:text-slate-900"
               }`}
             >
               <UploadCloud className="w-4 h-4 text-emerald-600" />
-              <span>{t("create.upload_title")}</span>
+              <span>Upload Notes / Book</span>
             </button>
           </div>
 
           {/* Tab Content Body */}
-          <div className="p-5 sm:p-6 space-y-4">
+          <div className="p-6 space-y-5">
             {mode === "topic" ? (
               <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">
-                    {t("create.topic_label")}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    What topic would you like to master?
                   </label>
                   <input
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleContinue()}
-                    placeholder={t("create.topic_placeholder")}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-[#0b1c30] focus:outline-none focus:border-[#0f172a]"
+                    placeholder="e.g. Kirchhoff's Current Law, Convolutional Neural Networks..."
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-full text-sm text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
                   />
                 </div>
 
+                {/* Suggestions Pills */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    {t("create.popular_topics")}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <span className="text-xs text-slate-500 font-medium">Or choose a curriculum topic:</span>
+                  <div className="flex flex-wrap gap-2">
                     {sampleTopicChips.map((chip, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setTopic(chip)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-md text-xs text-slate-700 transition cursor-pointer"
+                        className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition interactive-tactile cursor-pointer"
                       >
                         {chip}
                       </button>
@@ -176,73 +176,63 @@ export default function CreateLessonPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleFileDrop}
-                  className="border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-xl p-6 text-center bg-slate-50 transition flex flex-col items-center justify-center space-y-2 cursor-pointer"
+                  className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-8 text-center bg-slate-50/50 transition cursor-pointer space-y-3"
+                  onClick={() => document.getElementById("file-upload")?.click()}
                 >
-                  <UploadCloud className="w-6 h-6 text-slate-400" />
-                  <p className="text-xs font-semibold text-slate-700">
-                    {t("create.drag_drop")}{" "}
-                    <label className="text-emerald-700 hover:underline font-bold cursor-pointer">
-                      {t("create.browse")}
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-                    </label>
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    {t("create.supported_formats")}
-                  </p>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".pdf,.docx,.pptx,.txt"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <div className="w-12 h-12 bg-white rounded-full border border-slate-200 flex items-center justify-center mx-auto text-emerald-600">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-[#0f172a]">
+                      Click to upload or drag & drop notes
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Supports PDF, DOCX, PPTX, TXT up to 25MB
+                    </p>
+                  </div>
                 </div>
 
                 {file && (
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 truncate">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-between text-xs px-4">
+                    <div className="flex items-center gap-2 min-w-0">
                       <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="font-semibold text-slate-800 truncate">{file.name}</span>
+                      <span className="font-semibold text-emerald-900 truncate">
+                        {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setFile(null)}
-                      className="p-1 hover:bg-slate-200 rounded text-slate-500"
+                      className="text-emerald-700 hover:text-emerald-900 p-1 cursor-pointer"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
-                  </div>
-                )}
-
-                {isUploading && (
-                  <div className="space-y-1 pt-1">
-                    <div className="flex justify-between text-[11px] text-slate-500">
-                      <span>Uploading...</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${uploadProgress}%` }}
-                        className="h-full bg-emerald-600 transition-all rounded-full"
-                      />
-                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-end pt-3 border-t border-slate-100">
+            {/* Bottom Actions with Pill Button */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
               <button
                 type="button"
                 onClick={handleContinue}
                 disabled={isUploading || (mode === "topic" ? !topic.trim() : !file)}
-                className="px-5 py-2.5 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition flex items-center gap-2 cursor-pointer shadow-xs"
+                className="px-6 py-2.5 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>{isUploading ? "Uploading..." : t("create.continue_btn")}</span>
-                <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Continue to Profile</span>
+                <ArrowRight className="w-4 h-4 text-emerald-400" />
               </button>
             </div>
           </div>

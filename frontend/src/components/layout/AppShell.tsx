@@ -60,48 +60,48 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0b1c30] flex flex-col antialiased selection:bg-[#0f172a] selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] flex flex-col antialiased selection:bg-[#0f172a] selection:text-white">
       {/* Offline Alert Banner */}
       {isOffline && (
-        <div className="bg-amber-600 text-white px-4 py-1.5 text-xs font-medium flex items-center justify-center gap-2 sticky top-0 z-50">
-          <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline mode — actions will sync when connection returns</span>
+        <div className="bg-amber-600 text-white px-4 py-2 text-xs font-medium flex items-center justify-center gap-2 sticky top-0 z-50">
+          <WifiOff className="w-4 h-4" />
+          <span>Offline mode · Actions will sync automatically when connection returns</span>
         </div>
       )}
 
-      {/* Top Navbar */}
-      <header className="h-14 px-4 sm:px-6 bg-white/95 border-b border-slate-200 flex items-center justify-between backdrop-blur-md sticky top-0 z-40 shadow-xs shrink-0">
+      {/* Top Navbar (Structural P1 Surface) */}
+      <header className="h-14 px-4 sm:px-6 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-40 shrink-0">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
-          <div className="w-8 h-8 rounded-lg bg-[#0f172a] text-emerald-400 flex items-center justify-center shadow-xs">
+        <Link href="/" className="flex items-center gap-2.5 group cursor-pointer focus-visible:ring-2 focus-visible:ring-slate-900 rounded-lg p-1">
+          <div className="w-8 h-8 rounded-lg bg-[#0f172a] text-emerald-400 flex items-center justify-center">
             <GraduationCap className="w-4 h-4 stroke-[2.5]" />
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-heading font-extrabold text-sm text-[#0b1c30] tracking-tight">
+            <span className="font-heading font-extrabold text-sm text-[#0f172a] tracking-tight">
               Bharat Academix
             </span>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded tracking-wide hidden sm:inline-block">
+            <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded hidden sm:inline-block">
               AI Gurukul
             </span>
           </div>
         </Link>
 
-        {/* Utilities */}
+        {/* Utilities: Language + Profile */}
         <div className="flex items-center gap-2">
           {/* Language Selector */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-lg text-xs font-semibold text-[#0b1c30] transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-lg text-xs font-semibold text-[#0f172a] transition cursor-pointer interactive-tactile focus-visible:ring-2 focus-visible:ring-slate-900"
             >
-              <Globe className="w-3 h-3 text-slate-600" />
+              <Globe className="w-3.5 h-3.5 text-slate-600" />
               <span>{language}</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
             {isLangDropdownOpen && (
-              <div className="absolute right-0 mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                 {languages.map((l) => (
                   <button
                     key={l.code}
@@ -109,42 +109,42 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       setLanguage(l.label);
                       setIsLangDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer ${
+                    className={`w-full text-left px-3 py-2 rounded-md text-xs flex items-center justify-between cursor-pointer transition ${
                       language === l.label
-                        ? "bg-[#0f172a] text-white font-bold"
-                        : "text-[#0b1c30] hover:bg-slate-100"
+                        ? "bg-[#0f172a] text-white font-semibold"
+                        : "text-[#0f172a] hover:bg-slate-100"
                     }`}
                   >
                     <span>{l.label}</span>
-                    <span className="text-[10px] opacity-70">{l.native}</span>
+                    <span className="text-[11px] opacity-70">{l.native}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* User Chip */}
+          {/* User Profile Link */}
           <Link
             href="/profile"
-            className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition interactive-tactile focus-visible:ring-2 focus-visible:ring-slate-900"
           >
-            <div className="w-5 h-5 rounded-full bg-[#0f172a] text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+            <div className="w-5 h-5 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[11px] font-bold">
               <User className="w-3 h-3" />
             </div>
-            <span className="text-xs font-semibold text-[#0b1c30] hidden sm:inline-block">Aarav S.</span>
+            <span className="text-xs font-semibold text-[#0f172a] hidden sm:inline-block">Student</span>
           </Link>
         </div>
       </header>
 
-      {/* Main Page Area with natural scrolling */}
-      <main className="flex-1 px-4 sm:px-6 py-4 max-w-6xl w-full mx-auto pb-20">
+      {/* Main Page Content */}
+      <main className="flex-1 px-4 sm:px-6 py-6 max-w-6xl w-full mx-auto pb-24">
         {children}
       </main>
 
       {/* Floating Bottom Nav Dock (Hidden in focused AI Classroom sessions) */}
       {!isClassroom && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
-          <nav className="bg-[#0f172a] text-white border border-slate-700/80 rounded-full p-1.5 shadow-xl flex items-center gap-1.5 backdrop-blur-md">
+          <nav className="bg-[#0f172a] text-white border border-slate-800 rounded-full p-1.5 shadow-xl flex items-center gap-1.5 backdrop-blur-md">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -154,11 +154,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   key={item.href}
                   href={item.href}
                   title={item.label}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition cursor-pointer interactive-tactile focus-visible:ring-2 focus-visible:ring-white ${
                     isActive
-                      ? "bg-emerald-500 text-slate-950 font-bold shadow-sm"
+                      ? "bg-white text-[#0f172a] font-bold shadow-xs"
                       : item.isPrimary
-                      ? "bg-slate-800 text-emerald-400 hover:bg-slate-700 hover:text-white"
+                      ? "bg-slate-800 text-white hover:bg-slate-700"
                       : "text-slate-400 hover:text-white hover:bg-slate-800"
                   }`}
                 >

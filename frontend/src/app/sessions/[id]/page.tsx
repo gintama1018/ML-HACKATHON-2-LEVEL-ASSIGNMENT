@@ -20,13 +20,10 @@ import {
   Languages,
   MessageSquare,
   Video,
-  Layers,
   Send,
   Sparkles,
   Download,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle
+  AlertCircle
 } from "lucide-react";
 
 interface SessionPageProps {
@@ -74,7 +71,7 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
     try {
       const s = await api.getSession(sessionId);
       setSession(s);
-      if (s.language && (s.language === "Hindi" || s.language === "Hinglish" || s.language === "English")) {
+      if (s.language && (s.language === "Hindi" || s.language === "Hinglish" || s.language === "English" || s.language === "Tamil" || s.language === "Bengali")) {
         setGlobalLang(s.language as SupportedLanguage);
       }
       if (s.video_url) {
@@ -139,113 +136,103 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
   };
 
   const handleToggleMute = () => {
-    const nextMute = !isMuted;
-    setIsMuted(nextMute);
-    speechController.setMuted(nextMute);
+    if (isMuted) {
+      setIsMuted(false);
+      if (session?.current_segment?.explanation_text) {
+        speechController.speak(session.current_segment.explanation_text, session.language);
+      }
+    } else {
+      setIsMuted(true);
+      speechController.stop();
+    }
   };
 
   const handleSpeedChange = (speed: number) => {
     setPlaybackSpeed(speed);
     speechController.setRate(speed);
-    if (isSpeaking && session?.current_segment?.explanation_text) {
-      speechController.speak(session.current_segment.explanation_text, session?.language);
-    }
   };
 
   const handleLanguageSwitch = async (newLang: string) => {
+    if (!session) return;
     try {
-      setLanguageToast(`Switching to ${newLang}...`);
+      speechController.stop();
+      setLanguageToast(`Translating teaching session to ${newLang}...`);
+      const updated = await api.updateSession(session.id, { language: newLang });
+      setSession(updated);
       setGlobalLang(newLang as SupportedLanguage);
-      const updatedSession = await api.updateSession(sessionId, { language: newLang });
-      setSession(updatedSession);
-      setLanguageToast(`Switched to ${newLang}!`);
-      setTimeout(() => setLanguageToast(null), 2500);
-
-      if (updatedSession?.current_segment?.explanation_text && !isMuted) {
-        speechController.speak(updatedSession.current_segment.explanation_text, newLang);
-      }
-    } catch (err) {
+      setTimeout(() => setLanguageToast(null), 3000);
+    } catch (err: any) {
       console.error("Failed to switch language:", err);
+      setLanguageToast(err.message || "Failed to switch language.");
+      setTimeout(() => setLanguageToast(null), 4000);
     }
   };
 
-  const handleSubmitAnswer = async (responseText: string, isUnsure: boolean = false) => {
-    if (!session?.current_question) return;
+  const handleSubmitAnswer = async (answer: string) => {
+    if (!session || !session.current_question) return;
     setIsEvaluating(true);
-
     try {
-      const evalRes = await api.submitAnswer(sessionId, session.current_question.id, responseText, isUnsure);
-      setEvaluationResult(evalRes);
-
-      // Refresh session difficulty & state
-      const refreshed = await api.getSession(sessionId);
-      setSession(refreshed);
-
-      if (!evalRes.correct && evalRes.new_explanation && !isMuted) {
-        speechController.speak(evalRes.new_explanation, session.language);
+      const result = await api.submitAnswer(session.id, session.current_question.id, answer, false);
+      setEvaluationResult(result);
+      const voiceText = result.feedback || result.notes;
+      if (voiceText) {
+        speechController.speak(voiceText, session.language);
       }
     } catch (err: any) {
-      console.error("Failed to evaluate answer:", err);
+      console.error("Failed to submit answer:", err);
     } finally {
       setIsEvaluating(false);
     }
   };
 
-  const handleExplainAgain = async () => {
+  const handleContinue = async () => {
+    if (!session) return;
+    setEvaluationResult(null);
     try {
-      const res = await api.explainAgain(sessionId);
-      if (session && session.current_segment) {
-        const updatedSeg = {
-          ...session.current_segment,
-          explanation_text: res.new_explanation,
-          retry_count: res.retry_count,
-        };
-        setSession({ ...session, current_segment: updatedSeg });
-        setEvaluationResult(null);
-        if (!isMuted) {
-          speechController.speak(res.new_explanation, session.language);
-        }
+      const updated = await api.nextSegment(session.id);
+      setSession(updated);
+      if (updated.status === "assessment") {
+        router.push(`/sessions/${session.id}/assessment`);
+      } else if (updated.status === "completed") {
+        router.push(`/sessions/${session.id}/report`);
       }
-    } catch (err) {
-      console.error("Failed to re-explain:", err);
+    } catch (err: any) {
+      console.error("Failed to advance segment:", err);
     }
   };
 
-  const handleContinue = async () => {
+  const handleExplainAgain = async () => {
+    if (!session) return;
     setEvaluationResult(null);
-    setIsLoading(true);
-
     try {
-      const nextSession = await api.nextSegment(sessionId);
-      setSession(nextSession);
-
-      if (nextSession.status === "assessment") {
-        router.push(`/sessions/${sessionId}/assessment`);
+      const res = await api.explainAgain(session.id);
+      if (session.current_segment) {
+        setSession({
+          ...session,
+          current_segment: {
+            ...session.current_segment,
+            explanation_text: res.new_explanation,
+            retry_count: res.retry_count
+          }
+        });
+        speechController.speak(res.new_explanation, session.language);
       }
-    } catch (err) {
-      console.error("Failed to advance segment:", err);
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      console.error("Failed to re-explain:", err);
     }
   };
 
   const handleAskDoubt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!doubtInput.trim() || isAskingDoubt) return;
-
-    const qText = doubtInput.trim();
-    setDoubtInput("");
+    if (!doubtInput.trim() || !session) return;
     setIsAskingDoubt(true);
-
+    const q = doubtInput.trim();
+    setDoubtInput("");
     try {
-      const resp = await api.askTeacher(sessionId, qText);
-      setDoubtHistory((prev) => [{ q: qText, a: resp }, ...prev]);
-
-      // Voice response through avatar
-      if (!isMuted && resp.voice_script) {
-        speechController.speak(resp.voice_script, session?.language || "English");
-      }
-    } catch (err) {
+      const ans = await api.askTeacher(session.id, q);
+      setDoubtHistory((prev) => [...prev, { q, a: ans }]);
+      speechController.speak(ans.answer, session.language);
+    } catch (err: any) {
       console.error("Failed to ask doubt:", err);
     } finally {
       setIsAskingDoubt(false);
@@ -253,16 +240,20 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
   };
 
   const handleGenerateVideo = async () => {
+    if (!session) return;
     setIsGeneratingVideo(true);
     try {
-      const res = await api.generateVideo({
-        session_id: sessionId,
-        language: session?.language || "English"
+      const job = await api.generateVideo({
+        session_id: session.id,
+        lesson_topic: session.lesson?.topic || "Comprehensive AI Lesson",
+        language: session.language
       });
-      setVideoData(res);
-      setActiveTab("video");
-    } catch (err) {
-      console.error("Video generation failed:", err);
+      setVideoData(job);
+      if (job.video_url) {
+        setActiveTab("video");
+      }
+    } catch (err: any) {
+      console.error("Failed to generate video:", err);
     } finally {
       setIsGeneratingVideo(false);
     }
@@ -270,110 +261,104 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
 
   if (isLoading || !session) {
     return (
-      <AppShell pageTitle="AI Classroom">
-        <div className="max-w-xl mx-auto py-12 text-center space-y-2">
+      <AppShell pageTitle="Autonomous AI Classroom">
+        <div className="max-w-2xl mx-auto py-16 text-center space-y-3">
           <div className="w-6 h-6 border-2 border-[#0f172a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500">Connecting to AI Teacher...</p>
+          <p className="text-sm text-slate-500 font-medium">Entering interactive classroom workspace...</p>
         </div>
       </AppShell>
     );
   }
 
   const currentSegment = session.current_segment;
-  const currentStep = session.current_step + 1;
-  const totalSegments = session.total_segments || 3;
-  const progressPct = Math.min(100, Math.round((currentStep / totalSegments) * 100));
+  const currentSegmentIdx = session.current_step || 0;
+  const totalSegments = session.total_segments || 1;
 
   return (
-    <AppShell pageTitle={`${t("class.concept")} ${currentStep}: ${currentSegment?.concept || "Interactive Lesson"}`}>
-      <div className="space-y-4 animate-in fade-in duration-200">
-        {/* Top Control Bar with Mode Switcher & Difficulty */}
-        <div className="px-4 py-2.5 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-          {/* Progress & Difficulty Badge */}
-          <div className="flex items-center gap-3 flex-1 min-w-[240px] max-w-md">
-            <span className="text-xs font-bold text-[#0b1c30] shrink-0">
-              {t("class.concept")} {currentStep}/{totalSegments}
-            </span>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
-              <div
-                style={{ width: `${progressPct}%` }}
-                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-              />
+    <AppShell pageTitle="Autonomous AI Classroom">
+      <div className="space-y-4 max-w-6xl mx-auto">
+        {/* Workspace Telemetry Header Capsule (P1 Surface) */}
+        <div className="p-4 sm:px-6 sm:py-3.5 bg-[#0f172a] text-white rounded-3xl sm:rounded-full border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-white shrink-0">
+              0{currentSegmentIdx + 1}
             </div>
-            {/* Dynamic Difficulty Badge */}
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 border ${
-              session.current_difficulty === "Advanced"
-                ? "bg-purple-50 text-purple-800 border-purple-200"
-                : session.current_difficulty === "Beginner"
-                ? "bg-blue-50 text-blue-800 border-blue-200"
-                : "bg-slate-100 text-slate-700 border-slate-200"
-            }`}>
-              Level: {session.current_difficulty}
-            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-slate-300">
+                  Segment {currentSegmentIdx + 1} of {totalSegments}
+                </span>
+                <span className="text-[11px] text-emerald-400 font-medium">
+                  {session.lesson?.topic || "Curriculum Session"}
+                </span>
+              </div>
+              <h1 className="font-heading font-bold text-sm sm:text-base text-white tracking-tight">
+                {currentSegment?.concept || "Interactive Classroom Concept"}
+              </h1>
+            </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-            <button
-              type="button"
-              onClick={() => setActiveTab("interactive")}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === "interactive"
-                  ? "bg-white text-[#0b1c30] shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Interactive Classroom</span>
-            </button>
+          {/* Mode Tabs & Controls */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* Mode Switcher Pill */}
+            <div className="flex bg-slate-900 p-1 rounded-full border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setActiveTab("interactive")}
+                className={`px-3.5 py-1 rounded-full text-xs font-semibold transition cursor-pointer interactive-tactile ${
+                  activeTab === "interactive"
+                    ? "bg-white text-[#0f172a] shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Live Interactive
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("video")}
+                className={`px-3.5 py-1 rounded-full text-xs font-semibold transition cursor-pointer interactive-tactile flex items-center gap-1.5 ${
+                  activeTab === "video"
+                    ? "bg-white text-[#0f172a] shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Video className="w-3 h-3 text-emerald-400" />
+                <span>AI Video</span>
+              </button>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (!videoData) handleGenerateVideo();
-                else setActiveTab("video");
-              }}
-              disabled={isGeneratingVideo}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === "video"
-                  ? "bg-white text-[#0b1c30] shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Video className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isGeneratingVideo ? "Rendering MP4..." : "AI Teaching Video"}</span>
-            </button>
-          </div>
-
-          {/* Utilities: Ask Doubt, Language, Exit */}
-          <div className="flex items-center gap-2">
+            {/* Ask Doubt Pill */}
             <button
               type="button"
               onClick={() => setShowDoubtDrawer(!showDoubtDrawer)}
-              className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              className={`px-4 py-1.5 rounded-full border text-xs font-semibold transition cursor-pointer interactive-tactile flex items-center gap-1.5 ${
                 showDoubtDrawer
-                  ? "bg-[#0f172a] text-white border-[#0f172a]"
-                  : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                  ? "bg-white text-[#0f172a] border-white"
+                  : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700"
               }`}
             >
-              <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
+              <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
               <span>Ask Doubt</span>
             </button>
 
+            {/* Language Switcher Pill */}
             <select
               value={session.language}
               onChange={(e) => handleLanguageSwitch(e.target.value)}
-              className="px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-[#0b1c30] cursor-pointer"
+              className="px-3.5 py-1.5 bg-slate-800 border border-slate-700 rounded-full text-xs font-medium text-white cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
               <option value="English">English</option>
               <option value="Hindi">Hindi (हिंदी)</option>
               <option value="Hinglish">Hinglish</option>
+              <option value="Tamil">Tamil (தமிழ்)</option>
+              <option value="Bengali">Bengali (বাংলা)</option>
             </select>
 
+            {/* Exit Session Pill Button */}
             <button
               type="button"
               onClick={() => setShowExitModal(true)}
-              className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition cursor-pointer"
+              className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full transition cursor-pointer"
               title="Exit Lesson"
             >
               <LogOut className="w-4 h-4" />
@@ -381,21 +366,21 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
           </div>
         </div>
 
-        {/* Language Toast */}
+        {/* Language Switching Alert */}
         {languageToast && (
-          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-bold text-amber-900 flex items-center gap-2">
-            <Languages className="w-3.5 h-3.5 text-amber-600" />
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-full text-xs font-semibold text-amber-900 flex items-center gap-2 px-6">
+            <Languages className="w-4 h-4 text-amber-600 shrink-0" />
             <span>{languageToast}</span>
           </div>
         )}
 
         {/* MODE 1: INTERACTIVE CLASSROOM VIEW */}
         {activeTab === "interactive" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* LEFT COLUMN: Sticky Teacher & Captions */}
-            <div className="lg:col-span-5 flex flex-col space-y-3 lg:sticky lg:top-18 self-start">
-              {/* Teacher Avatar */}
-              <div className="h-44 sm:h-52 w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* LEFT COLUMN (5 cols): Teacher Avatar + Synchronized Audio & Captions */}
+            <div className="lg:col-span-5 flex flex-col space-y-4 lg:sticky lg:top-18 self-start">
+              {/* Teacher Avatar Canvas */}
+              <div className="h-48 sm:h-56 w-full bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
                 <AvatarTeacher
                   isSpeaking={isSpeaking && !isPaused}
                   mood={isEvaluating ? "thinking" : evaluationResult?.correct ? "encouraging" : "explaining"}
@@ -404,13 +389,13 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                 />
               </div>
 
-              {/* Audio Controls */}
-              <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-2 shadow-xs">
+              {/* Audio Controls Capsule Bar */}
+              <div className="p-2.5 sm:px-4 bg-white rounded-full border border-slate-200 flex items-center justify-between gap-2 shadow-xs">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={handlePlayPause}
-                    className="p-2 bg-[#0f172a] hover:bg-slate-800 text-white rounded-lg transition cursor-pointer"
+                    className="p-2 bg-[#0f172a] hover:bg-slate-800 text-white rounded-full transition interactive-tactile cursor-pointer"
                   >
                     {isSpeaking && !isPaused ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
                   </button>
@@ -418,7 +403,7 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                   <button
                     type="button"
                     onClick={handleToggleMute}
-                    className={`p-2 rounded-lg border transition cursor-pointer ${
+                    className={`p-2 rounded-full border transition interactive-tactile cursor-pointer ${
                       isMuted
                         ? "bg-rose-50 border-rose-200 text-rose-700"
                         : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
@@ -428,15 +413,15 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-full text-xs">
                   {[0.75, 1.0, 1.25].map((speed) => (
                     <button
                       key={speed}
                       type="button"
                       onClick={() => handleSpeedChange(speed)}
-                      className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold transition cursor-pointer ${
+                      className={`px-2.5 py-0.5 rounded-full font-mono text-[11px] font-semibold transition cursor-pointer interactive-tactile ${
                         playbackSpeed === speed
-                          ? "bg-white text-[#0b1c30] shadow-xs"
+                          ? "bg-white text-[#0f172a] shadow-xs"
                           : "text-slate-500"
                       }`}
                     >
@@ -448,9 +433,9 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                 <button
                   type="button"
                   onClick={() => setShowCaptions(!showCaptions)}
-                  className={`p-2 rounded-lg border transition cursor-pointer ${
+                  className={`p-2 rounded-full border transition interactive-tactile cursor-pointer ${
                     showCaptions
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                      ? "bg-slate-100 border-slate-300 text-[#0f172a]"
                       : "bg-slate-50 border-slate-200 text-slate-400"
                   }`}
                   title="Toggle Captions"
@@ -461,11 +446,12 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
 
               {/* Spoken Script Captions */}
               {showCaptions && currentSegment && (
-                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1.5 max-h-48 overflow-y-auto">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                    <Subtitles className="w-3 h-3 text-emerald-600" /> {t("class.speaking_script")}
-                  </p>
-                  <p className="text-xs text-[#0b1c30] leading-relaxed italic">
+                <div className="p-5 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-2 max-h-52 overflow-y-auto">
+                  <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                    <Subtitles className="w-3.5 h-3.5 text-slate-600" />
+                    Teacher Script
+                  </span>
+                  <p className="text-sm text-slate-700 leading-relaxed italic">
                     {currentSegment.explanation_text}
                   </p>
                 </div>
@@ -477,10 +463,10 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
               )}
             </div>
 
-            {/* RIGHT COLUMN: Whiteboard & Seamless Adaptive Question Stream */}
+            {/* RIGHT COLUMN (7 cols): Primary Whiteboard & Adaptive Question Card */}
             <div className="lg:col-span-7 flex flex-col space-y-4">
-              {/* Whiteboard */}
-              <div className="h-56 sm:h-64 w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              {/* Whiteboard Canvas (Primary Focus) */}
+              <div className="h-64 sm:h-72 w-full bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
                 <Whiteboard
                   concept={currentSegment?.concept || "Core Concept"}
                   visualType={currentSegment?.visual_type || "chart"}
@@ -488,7 +474,7 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                 />
               </div>
 
-              {/* Adaptive Question Card */}
+              {/* Adaptive Question Stream */}
               {session.current_question && (
                 <AdaptiveQuestionCard
                   question={session.current_question}
@@ -504,32 +490,31 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
           </div>
         )}
 
-        {/* MODE 2: REAL AI-GENERATED TEACHING VIDEO (.MP4) */}
+        {/* MODE 2: AI-GENERATED TEACHING VIDEO (.MP4) */}
         {activeTab === "video" && (
           <div className="space-y-4 max-w-4xl mx-auto">
             {videoData && videoData.video_url ? (
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-heading font-bold text-sm sm:text-base text-[#0b1c30]">
-                      AI Teaching Video: {session.current_segment?.concept || "Comprehensive Lesson"}
-                    </h3>
+                    <h2 className="font-heading font-bold text-base text-[#0f172a]">
+                      AI Video: {session.current_segment?.concept || "Comprehensive Lesson"}
+                    </h2>
                     <p className="text-xs text-slate-500">
-                      Multi-scene composite 720p MP4 with animated avatar, whiteboard visuals & synchronized speech audio
+                      Multi-scene 720p MP4 with animated avatar, whiteboard visuals & synchronized TTS
                     </p>
                   </div>
                   <a
                     href={`http://localhost:8000${videoData.video_url}`}
                     download
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition interactive-tactile"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download MP4</span>
                   </a>
                 </div>
 
-                {/* Real HTML5 Video Player */}
-                <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-950 shadow-md">
+                <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-md">
                   <video
                     controls
                     autoPlay
@@ -537,37 +522,19 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                     className="w-full h-full object-contain"
                   />
                 </div>
-
-                {/* Scene Storyboard Timeline Markers */}
-                {videoData.scenes && videoData.scenes.length > 0 && (
-                  <div className="space-y-2 pt-2">
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Video Scene Storyboard Breakdown
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                      {videoData.scenes.map((sc, idx) => (
-                        <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-                          <span className="text-[10px] font-bold text-emerald-700">Scene {sc.scene_index} ({sc.start_time}s - {sc.end_time}s)</span>
-                          <p className="font-bold text-[#0b1c30] truncate">{sc.title}</p>
-                          <span className="text-[10px] font-mono uppercase text-slate-500">[{sc.visual_type}]</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
-              <div className="p-8 bg-white rounded-xl border border-slate-200 text-center space-y-3">
-                <Video className="w-10 h-10 text-emerald-600 mx-auto" />
-                <h4 className="font-heading font-bold text-sm text-[#0b1c30]">Generate Educational MP4 Video</h4>
+              <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center space-y-3">
+                <Video className="w-10 h-10 text-slate-400 mx-auto" />
+                <h3 className="font-heading font-bold text-base text-[#0f172a]">Generate Educational Video</h3>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Render a complete 720p multi-scene teaching video with synchronized TTS audio tracks, whiteboard animations, and animated avatar narration.
+                  Synthesize a composite 720p teaching video with TTS narration and whiteboard diagrams.
                 </p>
                 <button
                   type="button"
                   onClick={handleGenerateVideo}
                   disabled={isGeneratingVideo}
-                  className="px-5 py-2.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition inline-flex items-center gap-2"
+                  className="px-6 py-2.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-full transition interactive-tactile inline-flex items-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   <span>{isGeneratingVideo ? "Synthesizing Scenes..." : "Generate AI Video"}</span>
@@ -577,63 +544,57 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
           </div>
         )}
 
-        {/* ASK THE TEACHER DOUBT DRAWER (Contextual Q&A) */}
+        {/* Contextual Ask Doubt Drawer Capsule */}
         {showDoubtDrawer && (
-          <div className="fixed bottom-16 right-4 sm:right-8 w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-2xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-5 duration-150">
+          <div className="fixed bottom-20 right-4 sm:right-8 w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-6 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-emerald-600" />
-                <h4 className="font-heading font-bold text-xs text-[#0b1c30]">Ask AI Teacher a Doubt</h4>
+                <MessageSquare className="w-4 h-4 text-amber-500" />
+                <h3 className="font-heading font-bold text-xs text-[#0f172a]">Ask AI Teacher a Doubt</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDoubtDrawer(false)}
-                className="text-xs text-slate-400 hover:text-slate-700"
+                className="text-xs text-slate-400 hover:text-slate-700 font-bold p-1 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Doubt Input Form */}
             <form onSubmit={handleAskDoubt} className="flex gap-2">
               <input
                 type="text"
                 value={doubtInput}
                 onChange={(e) => setDoubtInput(e.target.value)}
                 placeholder="Ask any question about this concept..."
-                className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-[#0b1c30] placeholder:text-slate-400 focus:outline-none focus:border-[#0f172a]"
+                className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
               />
               <button
                 type="submit"
                 disabled={isAskingDoubt || !doubtInput.trim()}
-                className="p-2 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white rounded-lg transition"
+                className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white rounded-full transition interactive-tactile cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
             </form>
 
-            {/* Conversation History */}
             <div className="max-h-56 overflow-y-auto space-y-2.5 pt-1">
               {isAskingDoubt && (
-                <div className="p-2 bg-slate-50 rounded-lg text-xs text-slate-500 flex items-center gap-2">
+                <div className="p-2 bg-slate-50 rounded-full text-xs text-slate-500 flex items-center gap-2 px-4">
                   <span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                   <span>Teacher is formulating grounded answer...</span>
                 </div>
               )}
 
               {doubtHistory.map((item, idx) => (
-                <div key={idx} className="space-y-1.5 text-xs">
-                  <div className="p-2 bg-slate-100 rounded-lg font-bold text-[#0b1c30]">
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="px-3.5 py-1.5 bg-slate-100 rounded-full font-semibold text-[#0f172a]">
                     You: {item.q}
                   </div>
-                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg space-y-1 text-[#0b1c30]">
-                    <div className="flex items-center justify-between text-[10px] font-bold text-emerald-800">
-                      <span>AI Teacher</span>
-                      <span>{item.a.is_grounded ? "✓ Verified Grounded" : "General Principles"}</span>
-                    </div>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-1 text-slate-800">
                     <p className="leading-relaxed">{item.a.answer}</p>
                     {item.a.citations && item.a.citations.length > 0 && (
-                      <div className="pt-1 text-[10px] text-emerald-700 font-mono">
+                      <div className="pt-1 text-[11px] text-slate-500 font-mono">
                         Citations: {item.a.citations.map((c, i) => `[p.${c.page || 1}]`).join(" ")}
                       </div>
                     )}
@@ -647,25 +608,25 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
         {/* Exit Modal */}
         {showExitModal && (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-            <div className="max-w-xs w-full bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xl">
-              <h3 className="font-heading text-sm font-bold text-[#0b1c30]">{t("class.exit_confirm")}</h3>
-              <p className="text-xs text-slate-500">
-                {t("class.exit_desc")}
+            <div className="max-w-xs w-full bg-white border border-slate-200 rounded-3xl p-6 space-y-3 shadow-xl">
+              <h3 className="font-heading text-sm font-bold text-[#0f172a]">Exit Teaching Session?</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Your progress will be saved. You can resume this session anytime from the dashboard.
               </p>
-              <div className="flex items-center justify-end gap-2 pt-1">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowExitModal(false)}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg"
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-full transition interactive-tactile cursor-pointer"
                 >
-                  {t("class.cancel")}
+                  Cancel
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push("/")}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg"
+                  className="px-4 py-1.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-semibold rounded-full transition interactive-tactile cursor-pointer"
                 >
-                  {t("class.exit_dashboard")}
+                  Exit to Dashboard
                 </button>
               </div>
             </div>

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Reasoning/Pedagogical planning: gemini-2.5-flash (strong, structured reasoning)
     # Fast extraction/scoring:       gemini-2.0-flash (low-latency, high throughput)
     GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-2.5-flash")
-    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-2.0-flash")
+    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
     
     # Storage Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

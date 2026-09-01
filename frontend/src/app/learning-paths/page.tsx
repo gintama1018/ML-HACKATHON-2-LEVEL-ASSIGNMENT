@@ -209,7 +209,7 @@ export default function LearningPathsPage() {
               </div>
             )}
 
-            {/* Sequential Modules Timeline — SLEEK CAPSULE PILLS */}
+            {/* Sequential Modules Timeline — COMPACT 2-COLUMN CAPSULE PILL GRID */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="font-heading font-bold text-sm text-[#0f172a]">
@@ -217,116 +217,109 @@ export default function LearningPathsPage() {
                 </h2>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {activePath?.modules?.map((mod) => {
                   const isLocked = !mod.is_unlocked;
                   const isCompleted = mod.is_completed;
                   const isCurrent = mod.is_unlocked && !mod.is_completed;
 
-                  // 1. ACTIVE MODULE (P0 Focus: Sleek Capsule Pill with Emerald Accent)
+                  // 1. ACTIVE MODULE (Compact Capsule Pill with Hover Glow)
                   if (isCurrent) {
                     return (
                       <div
                         key={mod.id}
-                        className="group px-4 py-3 sm:px-6 sm:py-3.5 rounded-full border-2 border-emerald-600 bg-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 transition hover:shadow-md"
+                        className="group px-4 py-3 rounded-full border-2 border-emerald-600 bg-white shadow-sm flex items-center justify-between gap-3 transition hover:shadow-md"
                       >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center justify-center shrink-0 font-bold text-xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center justify-center shrink-0 font-bold text-xs">
                             0{mod.module_order}
                           </div>
 
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-heading font-bold text-sm text-[#0f172a] truncate">
-                                {mod.title}
-                              </h3>
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
-                                Active Module
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-600 line-clamp-1 max-w-xl hidden sm:block">
-                              {mod.description}
-                            </p>
+                            <h3 className="font-heading font-bold text-xs text-[#0f172a] truncate max-w-[150px] sm:max-w-[200px]">
+                              {mod.title}
+                            </h3>
+                            <span className="text-[10px] font-semibold text-emerald-700 block truncate">
+                              Active Module
+                            </span>
                           </div>
                         </div>
 
-                        {/* P0 Primary Pill Actions */}
-                        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                        {/* Primary Pill Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => handleLaunchModuleLesson(mod)}
-                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition interactive-tactile shadow-xs cursor-pointer"
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[11px] font-bold flex items-center gap-1 transition interactive-tactile shadow-xs cursor-pointer"
                           >
-                            <Play className="w-3.5 h-3.5 fill-current" />
-                            <span>Teach Module</span>
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>Teach</span>
                           </button>
                           <button
                             onClick={() => handleCompleteModule(mod.id, 92.0)}
-                            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-full text-xs font-semibold flex items-center gap-1 transition interactive-tactile cursor-pointer"
+                            className="px-2.5 py-1 bg-slate-100 group-hover:bg-[#0f172a] group-hover:text-white border border-slate-200 text-slate-700 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all interactive-tactile cursor-pointer"
                             title="Verify mastery with ≥70% score to unlock next module"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Pass & Unlock</span>
+                            <ShieldCheck className="w-3 h-3 text-emerald-600 group-hover:text-emerald-400" />
+                            <span>Unlock</span>
                           </button>
                         </div>
                       </div>
                     );
                   }
 
-                  // 2. COMPLETED MODULE (Sleek Quiet Capsule Pill)
+                  // 2. COMPLETED MODULE (Compact Capsule Pill)
                   if (isCompleted) {
                     return (
                       <div
                         key={mod.id}
-                        className="group px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-slate-200 bg-white hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
+                        className="group px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:border-[#0f172a] hover:shadow-sm transition-all flex items-center justify-between gap-3 shadow-xs"
                       >
-                        <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
                             <CheckCircle2 className="w-4 h-4" />
                           </div>
 
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-heading font-semibold text-sm text-[#0f172a] truncate">
-                                0{mod.module_order}. {mod.title}
-                              </h3>
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                Mastered ({mod.score ? `${mod.score.toFixed(0)}%` : "100%"})
-                              </span>
-                            </div>
+                            <h3 className="font-heading font-semibold text-xs text-[#0f172a] truncate max-w-[150px] sm:max-w-[200px]">
+                              0{mod.module_order}. {mod.title}
+                            </h3>
+                            <span className="text-[10px] font-bold text-emerald-700">
+                              Mastered ({mod.score ? `${mod.score.toFixed(0)}%` : "100%"})
+                            </span>
                           </div>
                         </div>
 
                         <button
                           onClick={() => handleLaunchModuleLesson(mod)}
-                          className="px-4 py-1.5 bg-slate-100 hover:bg-[#0f172a] hover:text-white text-slate-700 rounded-full text-xs font-semibold flex items-center gap-1 transition interactive-tactile shrink-0 cursor-pointer"
+                          className="px-3 py-1 bg-slate-100 group-hover:bg-[#0f172a] group-hover:text-white text-slate-700 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all interactive-tactile shrink-0 cursor-pointer"
                         >
-                          <BookOpen className="w-3.5 h-3.5" />
+                          <BookOpen className="w-3 h-3" />
                           <span>Review</span>
                         </button>
                       </div>
                     );
                   }
 
-                  // 3. LOCKED MODULE (Dimmed Capsule Pill)
+                  // 3. LOCKED MODULE (Compact Dimmed Capsule Pill)
                   return (
                     <div
                       key={mod.id}
-                      className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-slate-200 bg-slate-50/80 flex items-center justify-between gap-3 text-slate-400"
+                      className="px-4 py-2.5 rounded-full border border-slate-200 bg-slate-50/80 flex items-center justify-between gap-3 text-slate-400"
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center shrink-0 text-xs font-bold">
-                          <Lock className="w-3.5 h-3.5" />
+                          <Lock className="w-3 h-3" />
                         </div>
 
                         <div className="min-w-0">
-                          <h3 className="font-heading font-medium text-sm text-slate-500 truncate">
+                          <h3 className="font-heading font-medium text-xs text-slate-500 truncate max-w-[160px] sm:max-w-[220px]">
                             0{mod.module_order}. {mod.title}
                           </h3>
                         </div>
                       </div>
 
-                      <span className="text-xs text-slate-400 font-medium px-3 py-0.5 rounded-full bg-slate-200/50 shrink-0">
-                        Requires Mod 0{mod.module_order - 1} ≥ 70%
+                      <span className="text-[10px] text-slate-400 font-medium px-2.5 py-0.5 rounded-full bg-slate-200/50 shrink-0">
+                        Locked
                       </span>
                     </div>
                   );

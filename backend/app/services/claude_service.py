@@ -8,9 +8,12 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+import warnings
 # Try optional google-generativeai import
 try:
-    import google.generativeai as genai
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FutureWarning)
+        import google.generativeai as genai
     HAVE_GEMINI = True
 except ImportError:
     genai = None

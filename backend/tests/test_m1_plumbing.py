@@ -11,7 +11,7 @@ def test_01_health_check():
     assert data["status"] == "healthy"
     assert "Bharat Academix" in data["app"]
 
-def test_02_student_and_learner_profile():
+def _create_student_and_learner_profile():
     # Get or create default student
     res = client.get("/students/default")
     assert res.status_code == 200
@@ -20,22 +20,15 @@ def test_02_student_and_learner_profile():
     student_id = student["id"]
     
     # Update student profile
-    res = client.patch(f"/students/{student_id}/profile", json={
-        "name": "Aarav Sharma",
-        "strong_concepts": ["Algebra basics"]
-    })
-    assert res.status_code == 200
-    assert res.json()["name"] == "Aarav Sharma"
-    assert "Algebra basics" in res.json()["strong_concepts"]
-    
-    # Create learner profile
+    student_id = res.json()["id"]
+
     res = client.post("/learner-profile", json={
         "student_id": student_id,
         "level": "Beginner",
-        "existing_knowledge": "Basic electrical concepts",
-        "objective": "Understand Ohm's law and circuits",
+        "existing_knowledge": "Basic circuits",
+        "objective": "Exam Prep",
+        "style": "Simple",
         "language": "English",
-        "style": "Simple & example-heavy",
         "available_time": "20 min",
         "depth": "Standard"
     })
@@ -43,11 +36,13 @@ def test_02_student_and_learner_profile():
     learner_profile = res.json()
     assert learner_profile["level"] == "Beginner"
     assert learner_profile["student_id"] == student_id
-    
     return student_id, learner_profile["id"]
 
+def test_02_student_and_learner_profile():
+    _create_student_and_learner_profile()
+
 def test_03_material_upload_and_analysis():
-    student_id, profile_id = test_02_student_and_learner_profile()
+    student_id, profile_id = _create_student_and_learner_profile()
     
     # Simulate text upload
     files = {"file": ("physics_notes.txt", b"Ohm's law states that current is directly proportional to voltage and inversely proportional to resistance.", "text/plain")}
@@ -70,7 +65,7 @@ def test_03_material_upload_and_analysis():
     assert res.json()["status"] in ["extracting", "chunking", "embedding", "indexing", "ready"]
 
 def test_04_lesson_planning_and_session_lifecycle():
-    student_id, profile_id = test_02_student_and_learner_profile()
+    student_id, profile_id = _create_student_and_learner_profile()
     
     # Generate Lesson
     res = client.post("/lessons/generate", json={

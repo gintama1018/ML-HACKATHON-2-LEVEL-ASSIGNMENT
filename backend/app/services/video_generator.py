@@ -240,17 +240,20 @@ class VideoGeneratorService:
             draw.ellipse([cx - 31, cy - 8, cx - 28, cy - 5], fill=(255, 255, 255))
             draw.ellipse([cx + 29, cy - 8, cx + 32, cy - 5], fill=(255, 255, 255))
 
-        # Viseme-based Mouth Animation
+        # Viseme-based Modulated Mouth Animation
         if is_speaking:
-            mouth_phase = frame_idx % 6
-            if mouth_phase in [1, 2]: # Wide vowel opening
-                draw.ellipse([cx - 18, cy + 26, cx + 18, cy + 46], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
-                draw.rectangle([cx - 10, cy + 28, cx + 10, cy + 32], fill=(255, 255, 255)) # Teeth
-                draw.ellipse([cx - 8, cy + 39, cx + 8, cy + 44], fill=(244, 63, 94)) # Tongue
-            elif mouth_phase in [3, 4]: # Narrow vowel opening
-                draw.ellipse([cx - 12, cy + 28, cx + 12, cy + 42], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
-                draw.rectangle([cx - 6, cy + 30, cx + 6, cy + 33], fill=(255, 255, 255))
-            else: # Semi-closed transition
+            mouth_phase = frame_idx % 8
+            if mouth_phase in [1, 2]: # Wide vowel (A / E)
+                draw.ellipse([cx - 18, cy + 25, cx + 18, cy + 47], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
+                draw.rectangle([cx - 10, cy + 27, cx + 10, cy + 32], fill=(255, 255, 255)) # Teeth
+                draw.ellipse([cx - 8, cy + 39, cx + 8, cy + 45], fill=(244, 63, 94)) # Tongue
+            elif mouth_phase in [3, 4]: # Open rounded (O / U)
+                draw.ellipse([cx - 14, cy + 26, cx + 14, cy + 44], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
+                draw.ellipse([cx - 7, cy + 32, cx + 7, cy + 40], fill=(244, 63, 94))
+            elif mouth_phase in [5, 6]: # Narrow / Dental (S / T / D)
+                draw.ellipse([cx - 12, cy + 28, cx + 12, cy + 38], fill=(136, 19, 55), outline=(76, 5, 25), width=1)
+                draw.rectangle([cx - 8, cy + 30, cx + 8, cy + 34], fill=(255, 255, 255))
+            else: # Closed / Consonant transition (M / P / B)
                 draw.arc([cx - 16, cy + 28, cx + 16, cy + 38], 10, 170, fill=(159, 18, 57), width=3)
         else:
             draw.arc([cx - 16, cy + 28, cx + 16, cy + 38], 15, 165, fill=(159, 18, 57), width=3)
@@ -260,7 +263,7 @@ class VideoGeneratorService:
         draw.text((80, 532), "Bharat Academix • Autonomous Gurukul", fill=(203, 213, 225), font=self._get_font(12))
 
     def _draw_whiteboard(self, draw: ImageDraw.ImageDraw, visual_type: str, visual_spec: dict, frame_idx: int):
-        """Draw subject-aware technical whiteboard (Circuits, Math, Code, Biology, Chemistry, Charts)."""
+        """Draw subject-aware technical whiteboard (Circuits, Math, Code, Biology, Chemistry, Timelines, Charts)."""
         wx, wy, ww, wh = 460, 100, 780, 480
         # Whiteboard Background
         draw.rounded_rectangle([wx, wy, wx + ww, wy + wh], radius=16, fill=(255, 255, 255), outline=(203, 213, 225), width=2)
@@ -343,7 +346,36 @@ class VideoGeneratorService:
             draw.text((wx + 90, wy + 260), "return current_flow", fill=(56, 189, 248), font=self._get_font(14))
             draw.text((wx + 60, wy + 330), ">>> Result: 2.50 Amperes [Verified Safe Operation]", fill=(74, 222, 128), font=self._get_font(14, bold=True))
 
-        # 6. DEFAULT CHART / COORDINATE PLOT
+        # 6. TIMELINE / CHRONOLOGICAL MILESTONES (History & Humanities - REQ-31)
+        elif visual_type == "timeline" or "history" in visual_type.lower() or "time" in visual_type.lower():
+            # Horizontal Timeline Spine
+            draw.line([(wx + 80, wy + 240), (wx + 700, wy + 240)], fill=(71, 85, 105), width=4)
+            
+            milestones = [
+                ("1780s", "Foundations", "Empirical observations"),
+                ("1820s", "Discovery", "Mathematical formulation"),
+                ("1900s", "Synthesis", "Quantum mechanics & circuits"),
+                ("2020s+", "AI Frontier", "Intelligent autonomous systems")
+            ]
+            
+            for i, (period, title, desc) in enumerate(milestones):
+                mx = wx + 120 + (i * 180)
+                is_active = ((frame_idx // 12) % 4) == i
+                node_color = (16, 185, 129) if is_active else (255, 255, 255)
+                outline_color = (16, 185, 129) if is_active else (15, 23, 42)
+                draw.ellipse([mx - 14, wy + 226, mx + 14, wy + 254], fill=node_color, outline=outline_color, width=3)
+                
+                # Period badge
+                draw.rounded_rectangle([mx - 40, wy + 160, mx + 40, wy + 195], radius=6, fill=(15, 23, 42))
+                draw.text((mx - 22, wy + 172), period, fill=(255, 255, 255), font=self._get_font(11, bold=True))
+                
+                # Title and description
+                draw.text((mx - 50, wy + 270), title, fill=(15, 23, 42), font=self._get_font(12, bold=True))
+                draw.text((mx - 65, wy + 295), desc, fill=(71, 85, 105), font=self._get_font(10))
+                
+            draw.text((wx + 220, wy + 420), "Chronological Evolution & Conceptual Milestones", fill=(15, 23, 42), font=self._get_font(13, bold=True))
+
+        # 7. DEFAULT CHART / COORDINATE PLOT
         else:
             draw.line([(wx + 100, wy + 380), (wx + 700, wy + 380)], fill=(15, 23, 42), width=2) # X Axis
             draw.line([(wx + 100, wy + 380), (wx + 100, wy + 100)], fill=(15, 23, 42), width=2) # Y Axis

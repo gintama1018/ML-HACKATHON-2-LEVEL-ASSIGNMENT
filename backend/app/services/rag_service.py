@@ -63,12 +63,19 @@ class MiniLMEmbeddingFunction(EmbeddingFunction[Documents]):
         if self._model is None:
             try:
                 from sentence_transformers import SentenceTransformer
-                # Try loading cached local model weights if available
-                self._model = SentenceTransformer(self.model_name, local_files_only=True)
+                # Check for cached local model weights first
+                try:
+                    self._model = SentenceTransformer(self.model_name, local_files_only=True)
+                    logger.info(f"Loaded cached SentenceTransformer model: {self.model_name}")
+                except Exception:
+                    if os.environ.get("DOWNLOAD_EMBEDDINGS", "false").lower() == "true":
+                        self._model = SentenceTransformer(self.model_name)
+                    else:
+                        raise ValueError("Air-gapped mode active")
             except Exception as e:
                 logger.info(
-                    f"SentenceTransformer not cached locally ({e}). "
-                    f"Operating with deterministic ResilientEmbeddingFunction for instant air-gap execution."
+                    f"SentenceTransformer operating in resilient air-gap mode ({e}). "
+                    f"Engaging deterministic ResilientEmbeddingFunction for instant execution."
                 )
                 self._model = False
         return self._model

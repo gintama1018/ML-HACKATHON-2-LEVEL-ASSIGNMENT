@@ -324,7 +324,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lessons.map((l) => (
+              {lessons.slice(0, 6).map((l) => (
                 <div
                   key={l.id}
                   className="group px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full border border-slate-200 bg-white hover:border-[#0f172a] hover:shadow-md transition-all flex items-center justify-between gap-2.5"

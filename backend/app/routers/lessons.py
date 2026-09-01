@@ -13,15 +13,41 @@ from app.services.claude_service import claude_service
 router = APIRouter(tags=["Lessons"])
 
 @router.get("/lessons", response_model=List[LessonResponse])
-def list_student_lessons(student_id: str = None, db: Session = Depends(get_db)):
+def list_student_lessons(student_id: str = None, distinct: bool = True, db: Session = Depends(get_db)):
     if not student_id:
         student = db.query(StudentProfile).first()
         if not student:
             return []
         student_id = student.id
     
-    lessons = db.query(Lesson).filter(Lesson.student_id == student_id).order_by(Lesson.created_at.desc()).all()
-    return lessons
+    all_lessons = db.query(Lesson).filter(Lesson.student_id == student_id).order_by(Lesson.created_at.desc()).all()
+    if not distinct:
+        return all_lessons
+        
+    seen = set()
+    unique_lessons = []
+    for l in all_lessons:
+        key = (l.topic or "Study Document").strip().lower()
+        if key not in seen:
+            seen.add(key)
+            unique_lessons.append(l)
+    return unique_lessons
+
+@router.post("/lessons/cleanup-duplicates")
+def cleanup_duplicate_lessons(db: Session = Depends(get_db)):
+    """Removes duplicate test runs from SQLite keeping the latest for each topic"""
+    all_lessons = db.query(Lesson).order_by(Lesson.created_at.desc()).all()
+    seen = set()
+    deleted_count = 0
+    for l in all_lessons:
+        key = (l.topic or "Study Document").strip().lower()
+        if key in seen:
+            db.delete(l)
+            deleted_count += 1
+        else:
+            seen.add(key)
+    db.commit()
+    return {"status": "success", "deleted_duplicates": deleted_count, "unique_retained": len(seen)}
 
 @router.get("/lessons/{lesson_id}", response_model=LessonResponse)
 def get_lesson(lesson_id: str, db: Session = Depends(get_db)):

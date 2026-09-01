@@ -60,33 +60,33 @@ def generate_learning_path(payload: LearningPathGenerateRequest, db: Session = D
         raw_modules = [
             {
                 "module_order": 1,
-                "title": f"{topic} Foundations & Core Intuition",
-                "description": f"Understanding foundational axioms, definitions, and mental models of {topic}.",
-                "key_concepts": [f"{topic} Overview", "Fundamental Terminology", "First Principles"]
+                "title": f"{topic} Foundations & Core Principles",
+                "description": f"Understanding foundational axioms, key definitions, and mental models of {topic}.",
+                "key_concepts": [f"{topic} Overview", "Core Terminology", "Foundational Principles"]
             },
             {
                 "module_order": 2,
-                "title": f"Quantitative Mechanics & Mathematical Formulation",
-                "description": f"Mathematical and formal relationships governing {topic}.",
-                "key_concepts": ["Governing Equations", "Parameter Dependencies", "Analytical Solutions"]
+                "title": f"Structural Mechanics & Conceptual Frameworks in {topic}",
+                "description": f"Detailed exploration of internal structures, processes, and relationships governing {topic}.",
+                "key_concepts": ["Structural Framework", "Core Relationships", "Analytical Dynamics"]
             },
             {
                 "module_order": 3,
-                "title": f"Applied Engineering & Practical Scenarios",
-                "description": f"Real-world application problems and engineering case studies.",
-                "key_concepts": ["Real-world Systems", "Scenario Modeling", "Constraint Handling"]
+                "title": f"Real-World Scenarios & Applied Case Studies in {topic}",
+                "description": f"Practical application scenarios, historical/experimental examples, and case studies of {topic}.",
+                "key_concepts": ["Practical Scenarios", "Case Analysis", "Applied Methodologies"]
             },
             {
                 "module_order": 4,
-                "title": f"Advanced Synthesis & Complex Systems",
-                "description": f"Non-linear behaviors, edge-case optimization, and advanced architectures in {topic}.",
-                "key_concepts": ["Non-linear Dynamics", "Edge Case Analysis", "Advanced Frameworks"]
+                "title": f"Advanced Synthesis & Complex Systems in {topic}",
+                "description": f"Advanced interactions, edge cases, and comparative frameworks in {topic}.",
+                "key_concepts": ["Advanced Interactions", "Edge Case Analysis", "Synthesis Frameworks"]
             },
             {
                 "module_order": 5,
-                "title": f"Capstone Mastery & Diagnostic Review",
-                "description": f"End-to-end problem synthesis and comprehensive mastery verification.",
-                "key_concepts": ["Cross-Concept Synthesis", "Problem Solving Exam", "Revision Scaffolds"]
+                "title": f"Comprehensive Mastery & Capstone Diagnostic for {topic}",
+                "description": f"End-to-end concept synthesis, critical problem solving, and diagnostic mastery evaluation.",
+                "key_concepts": ["Cross-Concept Synthesis", "Problem Solving", "Diagnostic Review"]
             }
         ][:num_modules]
 
@@ -161,6 +161,13 @@ def update_module_progress(
     ).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found in this path")
+
+    # Enforce unlock guard: Cannot complete or score a locked module directly
+    if not module.is_unlocked and payload.is_completed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Module '{module.title}' is locked. Please complete preceding modules first."
+        )
 
     if payload.score is not None:
         module.score = payload.score

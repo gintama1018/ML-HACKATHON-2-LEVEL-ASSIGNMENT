@@ -11,10 +11,20 @@ client = TestClient(app)
 def test_attack_01_tts_failure_audio_muxing_resilience():
     """
     Judge Attack Test 1:
-    Even if cloud TTS (gTTS) is completely blocked or returns errors,
-    the video generator must produce a valid, playable, non-empty MP4 video.
+    Tests real speech audio generation (Tier 1/2/3) without NameError, verifying
+    speech synthesis audio file size, duration, and full video container muxing.
     """
-    # Test generation with fallback
+    # 1. Directly test speech audio synthesis
+    sample_text = "Welcome students. Today we explore the fundamental principles of quantum wave mechanics."
+    audio_test_path = "./static/videos/test_direct_speech.mp3"
+    duration = video_generator.generate_audio(sample_text, "English", audio_test_path)
+    
+    assert duration > 2.0, f"Speech duration too short: {duration}s"
+    assert os.path.exists(audio_test_path), f"Audio file not generated at {audio_test_path}"
+    audio_size = os.path.getsize(audio_test_path)
+    assert audio_size > 10000, f"Audio file too small ({audio_size} bytes), speech generation failed"
+
+    # 2. Test full video generation with fallback & multi-scene audio muxing
     result = video_generator.generate_lesson_video(
         session_id="judge_attack_video_test",
         lesson_topic="Quantum Tunneling & Wavefunctions",
@@ -45,7 +55,7 @@ def test_attack_02_universal_remediation_on_non_physics_topic():
     """
     Judge Attack Test 2:
     Wrong answer on a non-physics topic (e.g. Photosynthesis) must NEVER
-    generate hardcoded Ohm's Law or electricity text during fallback.
+    generate hardcoded Ohm's Law, electricity, or mechanical physics jargon during fallback.
     """
     # 1. Create student and learner profile for Biology
     res = client.post("/students", json={"name": "Biology Student"})
@@ -95,19 +105,21 @@ def test_attack_02_universal_remediation_on_non_physics_topic():
     assert eval_res["correct"] is False
     assert eval_res["adaptation_decision"] is not None
 
-    # Crucial Verification: NO Ohm's Law / voltage mention in biology remediation
+    # Crucial Verification: NO Ohm's Law / voltage / mechanical physics jargon in biology remediation
     expl = str(eval_res["adaptation_decision"].get("new_explanation", "")).lower()
     rationale = str(eval_res["adaptation_decision"].get("pedagogical_rationale", "")).lower()
     assert "ohm" not in expl
     assert "voltage" not in expl
-    assert "rocks narrowing the channel" not in expl
     assert "water pipe" not in rationale
+    assert "driving potential" not in expl
+    assert "opposing constraints" not in expl
 
 def test_attack_03_learning_path_curriculum_progression():
     """
     Judge Attack Test 3 (REQ-67/68):
     Create a persistent multi-module curriculum, verify initial lock gating,
-    and verify that scoring >= 70% unlocks the next sequential module.
+    verify that attempting to complete a locked module returns 403 Forbidden,
+    and verify that scoring >= 70% on the active module unlocks the next sequential module.
     """
     # 1. Generate 4-module Learning Path
     res = client.post("/learning-paths/generate", json={
@@ -128,7 +140,16 @@ def test_attack_03_learning_path_curriculum_progression():
     assert modules[1]["is_unlocked"] is False
     assert modules[2]["is_unlocked"] is False
 
-    # 2. Complete Module 1 with score 88.0%
+    # 2. Attack Attempt: Try to complete locked Module 3 directly -> Must return 403
+    mod3_id = modules[2]["id"]
+    res_attack = client.patch(f"/learning-paths/{path_id}/modules/{mod3_id}", json={
+        "is_completed": True,
+        "score": 95.0
+    })
+    assert res_attack.status_code == 403
+    assert "locked" in res_attack.json()["detail"].lower()
+
+    # 3. Legitimate Completion: Complete Module 1 with score 88.0%
     mod1_id = modules[0]["id"]
     res = client.patch(f"/learning-paths/{path_id}/modules/{mod1_id}", json={
         "is_completed": True,
@@ -139,7 +160,7 @@ def test_attack_03_learning_path_curriculum_progression():
     assert updated_mod1["is_completed"] is True
     assert updated_mod1["score"] == 88.0
 
-    # 3. Retrieve Path: Module 2 must now be unlocked
+    # 4. Retrieve Path: Module 2 must now be unlocked
     res = client.get(f"/learning-paths/{path_id}")
     assert res.status_code == 200
     updated_path = res.json()

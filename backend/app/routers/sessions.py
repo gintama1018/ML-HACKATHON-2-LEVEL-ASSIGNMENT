@@ -600,30 +600,30 @@ def submit_student_answer(
             c_name = current_segment.concept if current_segment else (session.lesson.topic if session.lesson else "the core principle")
             target_lang = (session.language or "English").lower()
             if "hindi" in target_lang:
-                new_explanation = f"आइए {c_name} को एक अलग और स्पष्ट दृष्टिकोण से समझते हैं। किसी भी प्रणाली में, मुख्य प्रभाव ड्राइविंग बल और प्रतिरोध के बीच संतुलन पर निर्भर करता है।"
-                prompt_text = f"{c_name} के संशोधित मॉडल के आधार पर, मुख्य संबंध क्या है?"
-                opt_correct = f"{c_name} में आउटपुट ड्राइविंग बल के सीधे आनुपातिक और आंतरिक प्रतिरोध के विपरीत आनुपातिक होता है।"
+                new_explanation = f"आइए {c_name} को बुनियादी सिद्धांतों और स्पष्ट व्यावहारिक संदर्भ के साथ सरल रूप से पुनः समझते हैं। मुख्य अंतर्दृष्टि यह है कि इसके सभी प्रमुख घटक एक संरचित और तार्किक प्रक्रिया के तहत परस्पर जुड़े होते हैं।"
+                prompt_text = f"{c_name} के इस संरचित मॉडल के आधार पर, कौन सा कथन सबसे सटीक है?"
+                opt_correct = f"{c_name} के मूलभूत सिद्धांत और प्रमुख घटक एक सुसंगत, तार्किक संरचना के अनुसार कार्य करते हैं।"
             elif "hinglish" in target_lang:
-                new_explanation = f"Chaliye {c_name} ko ek intuitive real-world perspective se dobara samajhte hain. Output hamesha driving potential aur opposing resistance ke ratio par depend karta hai."
-                prompt_text = f"{c_name} ke is model ke hisab se, correct governing principle kya hai?"
-                opt_correct = f"{c_name} me output driving potential ke directly proportional aur resistance ke inversely proportional hota hai."
+                new_explanation = f"Chaliye {c_name} ko foundational intuition aur clear practical context ke sath step-by-step dobara samajhte hain. Core insight ye hai ki iske sare key components ek structured logical framework me interact karte hain."
+                prompt_text = f"{c_name} ke is structured model ke hisab se, kaun sa statement sabse accurate hai?"
+                opt_correct = f"{c_name} ke core principles aur key components ek coherent, logical framework ke mutabiq operate karte hain."
             else:
-                new_explanation = f"Let's break down {c_name} using a concrete first-principles model. In this framework, the primary outcome is directly determined by the driving potential scaled against the system's opposing constraints."
-                prompt_text = f"Based on this concrete model of {c_name}, which statement correctly describes the governing behavior?"
-                opt_correct = f"The primary output is directly proportional to the driving force and inversely proportional to the opposing resistance."
+                new_explanation = f"Let's break down {c_name} step by step, starting from foundational intuition and clear practical context. The core insight is that each key component interacts within a cohesive, logically structured framework."
+                prompt_text = f"Based on this structured understanding of {c_name}, which statement is most accurate?"
+                opt_correct = f"The foundational principles and key elements of {c_name} operate within a cohesive, logically structured framework."
 
-            adaptation_info = {"action": "analogy_switch", "new_analogy": f"First-Principles Scaffold for {c_name}"}
+            adaptation_info = {"action": "analogy_switch", "new_analogy": f"Foundational Intuition Scaffold for {c_name}"}
             new_q_payload = {
                 "type": "mcq",
                 "prompt": prompt_text,
                 "options": [
                     opt_correct,
-                    f"The output increases exponentially regardless of opposing constraints in {c_name}.",
-                    f"The primary parameters in {c_name} operate completely independently with zero correlation.",
-                    f"The internal equilibrium remains entirely constant despite external driving force changes."
+                    f"The components of {c_name} function in complete isolation with zero systemic correlation.",
+                    f"The foundational framework of {c_name} is entirely arbitrary and lacks any structured logic.",
+                    f"The primary dynamics of {c_name} remain completely invariant regardless of fundamental context."
                 ],
                 "answer_key": opt_correct,
-                "explanation_hint": f"Remember: analyze how driving potential balances against resistance in {c_name}."
+                "explanation_hint": f"Focus on how core principles and key elements connect within {c_name}."
             }
 
         # Persist and create the genuine adaptive follow-up Question in DB

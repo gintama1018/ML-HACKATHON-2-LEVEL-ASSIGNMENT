@@ -152,17 +152,11 @@ class VideoGeneratorService:
                     except Exception:
                         pass
             except Exception as e:
-                logger.warning(f"Tier 2 (pyttsx3) unavailable: {e}. Engaging Tier 3 valid audio synthesis.")
+                logger.error(f"Tier 2 (pyttsx3) speech synthesis error: {e}")
 
-        # Tier 3: Valid Audio Fallback (libmp3lame sine/silence container)
+        # If both speech engines failed, raise a clear error — NEVER disguise audio failure with a 440 Hz beep
         if not audio_generated:
-            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-            subprocess.run([
-                ffmpeg_exe, "-y", "-f", "lavfi",
-                "-i", f"sine=frequency=440:duration={estimated_duration}",
-                "-c:a", "libmp3lame", "-b:a", "128k", "-ar", "24000", "-ac", "1",
-                output_path
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            raise RuntimeError("Speech audio synthesis failed. Both Tier 1 (gTTS) and Tier 2 (pyttsx3) speech engines were unavailable. Natural teacher voice could not be generated.")
 
         # Accurately probe duration using FFmpeg
         try:

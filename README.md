@@ -157,7 +157,7 @@ flowchart TD
 ### Architectural Layers
 1. **Frontend Presentation**: Next.js 16 App Router application styled with the Digital Gurukul Modern design tokens and sleek capsule pill geometry (Deep Navy `#0F172A`, Emerald `#10B981`, Warm Amber `#F59E0B`). Communicates via strongly-typed REST API clients (`lib/api.ts`).
 2. **Backend API**: FastAPI application serving 9 modular routers managing student profiles, document uploads, content extraction, session progress, answers, learning paths, assessments, video rendering, and diagnostics.
-3. **AI Agent Orchestrator**: Manages execution flow across 10 specialized agent functions, supporting Anthropic Claude (`claude-3-7-sonnet` / `claude-3-5-haiku`) and Google Gemini (`gemini-1.5-pro` / `gemini-1.5-flash`) with automatic failover and exponential retry.
+3. **AI Agent Orchestrator**: Manages execution flow across 10 specialized agent functions, supporting Google Gemini (`gemini-2.5-flash`) and Anthropic Claude (`claude-3-7-sonnet` / `claude-3-5-haiku`) with automatic failover and exponential retry.
 4. **Data & Vector Persistence**: SQLite database via SQLAlchemy ORM (15 entity models) for relational progress tracking alongside ChromaDB persistent vector storage (`./data/chroma_db`).
 5. **Video & Audio Synthesis Engine**: Programmatic multi-scene video renderer (`backend/app/services/video_generator.py`) that muxes PIL-rendered visual frames, animated avatars, and TTS audio into 720p MP4 files.
 
@@ -165,20 +165,17 @@ flowchart TD
 
 ## AI / ML Implementation
 
-The platform utilizes a **Two-Tier LLM Architecture** with multi-provider redundancy (Anthropic Claude & Google Gemini API):
+The platform utilizes a **Two-Tier LLM Architecture** with multi-provider redundancy (Google Gemini API & Anthropic Claude):
 
-| Agent | Tier | Default Model | Backup Model | Responsibility |
-| :--- | :--- | :--- | :--- | :--- |
-| **Content Analyzer** | Fast | `claude-3-5-haiku` | `gemini-1.5-flash` | Semantic document summarization & full-doc concept extraction |
-| **Lesson Planner** | Reasoning | `claude-3-7-sonnet` | `gemini-1.5-pro` | Pacing-conscious curriculum structuring & time budgeting |
-| **Teaching Agent** | Reasoning | `claude-3-7-sonnet` | `gemini-1.5-pro` | Concept explanation generation with grounding |
-| **Visual Planner** | Fast | `claude-3-5-haiku` | `gemini-1.5-flash` | Specification generation for whiteboard diagrams & charts |
-| **Question Generator** | Fast | `claude-3-5-haiku` | `gemini-1.5-flash` | Formative check generation across 4 pedagogical styles |
-| **Response Evaluator** | Fast | `claude-3-5-haiku` | `gemini-1.5-flash` | Semantic correctness grading & feedback generation |
-| **Misconception Detector** | Reasoning | `claude-3-7-sonnet` | `gemini-1.5-pro` | Cognitive root cause diagnosis for incorrect answers |
-| **Adaptive Teacher** | Reasoning | `claude-3-7-sonnet` | `gemini-1.5-pro` | Generates alternative mental models & re-teaching scripts |
-| **Assessment Engine** | Reasoning | `claude-3-7-sonnet` | `gemini-1.5-pro` | Multi-concept final exam synthesis & grading |
-| **Profile Engine** | Fast | `claude-3-5-haiku` | `gemini-1.5-flash` | Mastery matrix updates & weak concept tracking |
+| Component / Layer | Primary Engine / Model | Secondary / Fallback Engine | Purpose & Responsibility |
+| :--- | :--- | :--- | :--- |
+| **Reasoning & Planning LLM** | `gemini-2.5-flash` | `claude-3-7-sonnet` | Curriculum planning, pedagogical adaptation, misconception diagnosis, complex explanation generation |
+| **Fast LLM** | `gemini-2.5-flash` | `claude-3-5-haiku` | Rapid document summarization, question generation, semantic answer grading, translations |
+| **Vector Embeddings** | `all-MiniLM-L6-v2` (384-d) | `ResilientEmbeddingFunction` (384-d) | Dense semantic vectorization of PDF, DOCX, PPTX, and TXT chunks for ChromaDB indexing |
+| **Vector Store** | `chromadb.PersistentClient` | In-Memory SQLite fallback | Persistent chunk indexing and cosine/distance similarity retrieval |
+| **Speech Narration (TTS)** | Google Cloud TTS (`gTTS`) | `pyttsx3` Local Speech Engine | Multi-lingual audio narration synthesis for lesson video scenes |
+| **Grounding Verification** | Claim-Level Entailment | Token Overlap Matrix | Proposition extraction, claim support verification, and citation source attribution (REQ-20) |
+| **Mastery Tracking** | Evidence-Based State Machine | Provisional Assessment | Multi-tier mastery validation (`not_started` $\rightarrow$ `in_remediation` / `provisional` $\rightarrow$ `confirmed`) |
 
 *When external API keys are unavailable, all agents fall back to deterministic, subject-interpolated educational scaffolds to ensure uninterrupted local evaluation and 100% green test execution.*
 
@@ -276,10 +273,10 @@ Fulfills **REQ-06, REQ-27, REQ-28** by providing broad multilingual support acro
    - **Natural Micro-Animations**: Continuous 60fps breathing micro-sway and mood-adaptive eye saccades (`explaining`, `thinking`, `encouraging`).
 2. **Server-Side 720p MP4 Video Engine**:
    - Multi-scene storyboard synthesis with progress timers, 5-viseme speech-modulated avatar animation, domain whiteboard diagrams, and burned synchronized subtitles.
-   - **3-Tier Resilient Audio Pipeline**:
+   - **Dual Natural Speech Pipeline**:
      1. Cloud `gTTS` with sentence-boundary chunking and seamless FFmpeg audio concatenation.
      2. Local native `pyttsx3` speech synthesis engine.
-     3. Valid `libmp3lame` emergency audio stream fallback for air-gapped test environments.
+     *(Fail-safe error handling enforces that genuine teacher narration is always generated; no artificial placeholder beeps).*
    - Generates playable, downloadable `.mp4` video files served at `/static/videos/{session_id}.mp4`.
 
 ---
@@ -313,7 +310,7 @@ The interactive Whiteboard (`Whiteboard.tsx`) and Video Synthesis engine dynamic
 | **Vector Database** | ChromaDB (Persistent) | Local on-disk embedding storage for document RAG |
 | **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` | Dense 384-dim semantic embeddings with deterministic offline fallback |
 | **Video Engine** | PIL + gTTS + pyttsx3 + imageio-ffmpeg | Programmatic 15fps 720p H.264 educational MP4 synthesis |
-| **LLM Dual Engine** | Anthropic Claude & Google Gemini API | `claude-3-7-sonnet` / `gemini-1.5-pro` & `claude-3-5-haiku` / `gemini-1.5-flash` |
+| **LLM Dual Engine** | Google Gemini & Anthropic Claude | `gemini-2.5-flash` / `claude-3-7-sonnet` & `gemini-2.5-flash` / `claude-3-5-haiku` |
 
 ---
 

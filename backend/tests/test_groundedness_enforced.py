@@ -35,6 +35,9 @@ def test_groundedness_verification_and_enforcement():
     assert result_grounded["groundedness_score"] >= 0.70
     assert result_grounded["overlap_ratio"] > 0.4
     assert result_grounded["matched_concepts_count"] >= 5
+    assert len(result_grounded["verified_claims"]) >= 1
+    assert len(result_grounded["citation_sources"]) >= 1
+    assert result_grounded["citation_sources"][0]["section_ref"] in ["Ohm's Law Fundamentals", "Resistance & Units"]
 
     # 2. Test hallucinated explanation (Zero overlap)
     hallucinated_explanation = (
@@ -46,3 +49,5 @@ def test_groundedness_verification_and_enforcement():
     assert result_hallucinated["groundedness_score"] < 0.70
     assert result_hallucinated["overlap_ratio"] == 0.0
     assert result_hallucinated["matched_concepts_count"] == 0
+    assert len(result_hallucinated["verified_claims"]) == 0
+    assert len(result_hallucinated["unsupported_claims"]) >= 1

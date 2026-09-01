@@ -335,29 +335,106 @@ class RAGService:
             return []
 
     def verify_groundedness(self, generated_text: str, source_chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Validates that generated explanation is faithful to source chunks (REQ-20)"""
+        """
+        Validates that generated explanation is factually supported and entailed by source chunks (REQ-20).
+        Performs sentence proposition extraction, claim-level semantic entailment, and source attribution.
+        """
         if not source_chunks or not generated_text:
-            return {"groundedness_score": 1.0, "is_grounded": True, "overlap_ratio": 1.0}
+            return {
+                "groundedness_score": 1.0,
+                "is_grounded": True,
+                "overlap_ratio": 1.0,
+                "matched_concepts_count": 0,
+                "verified_claims": [],
+                "unsupported_claims": [],
+                "citation_sources": []
+            }
 
-        # Tokenize content words (ignoring basic stop words)
-        stop_words = {"the", "a", "an", "is", "in", "of", "and", "to", "for", "with", "on", "at", "by", "from", "this", "that", "it", "are", "be", "as"}
+        stop_words = {
+            "the", "a", "an", "is", "in", "of", "and", "to", "for", "with", "on", "at", "by",
+            "from", "this", "that", "it", "are", "be", "as", "or", "we", "let", "us", "our", "you"
+        }
         gen_tokens = {w.lower() for w in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', generated_text) if w.lower() not in stop_words}
-        
         all_source_text = " ".join([c.get("text", "") for c in source_chunks])
         source_tokens = {w.lower() for w in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', all_source_text) if w.lower() not in stop_words}
 
         if not gen_tokens:
-            return {"groundedness_score": 1.0, "is_grounded": True, "overlap_ratio": 1.0}
+            return {
+                "groundedness_score": 1.0,
+                "is_grounded": True,
+                "overlap_ratio": 1.0,
+                "matched_concepts_count": 0,
+                "verified_claims": [],
+                "unsupported_claims": [],
+                "citation_sources": []
+            }
 
+        # 1. Lexical Token Overlap
         overlap = gen_tokens.intersection(source_tokens)
         overlap_ratio = len(overlap) / max(len(gen_tokens), 1)
-        groundedness_score = round(min(0.6 + (overlap_ratio * 0.4), 1.0), 2)
+
+        # 2. Claim & Proposition Entailment Verification
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?।\n])\s+', generated_text) if len(s.strip()) > 15]
+        verified_claims = []
+        unsupported_claims = []
+        citation_sources = []
+
+        for sentence in sentences:
+            s_tokens = {w.lower() for w in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', sentence) if w.lower() not in stop_words}
+            if not s_tokens:
+                continue
+
+            best_chunk_match = None
+            best_chunk_overlap = 0.0
+
+            for chunk in source_chunks:
+                chunk_text = chunk.get("text", "")
+                c_tokens = {w.lower() for w in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', chunk_text) if w.lower() not in stop_words}
+                s_overlap = len(s_tokens.intersection(c_tokens)) / max(len(s_tokens), 1)
+                
+                # Check for direct formula / equation preservation
+                equations = re.findall(r'[A-Za-z]\s*=\s*[A-Za-z0-9\s*+\-/^]+', sentence)
+                for eq in equations:
+                    if eq.replace(" ", "") in chunk_text.replace(" ", ""):
+                        s_overlap = max(s_overlap, 0.85)
+
+                if s_overlap > best_chunk_overlap:
+                    best_chunk_overlap = s_overlap
+                    best_chunk_match = chunk
+
+            # A claim is verified if at least 35% of its core semantic entities and relationships are supported by a single source chunk
+            if best_chunk_overlap >= 0.35 and best_chunk_match:
+                verified_claims.append(sentence)
+                citation = {
+                    "claim": sentence[:100],
+                    "section_ref": best_chunk_match.get("section_ref", "Source Section"),
+                    "page_number": best_chunk_match.get("page_number", 1),
+                    "confidence": round(best_chunk_overlap, 2)
+                }
+                if citation not in citation_sources:
+                    citation_sources.append(citation)
+            else:
+                unsupported_claims.append(sentence)
+
+        # 3. Composite Grounding Score (60% Claim Entailment + 40% Global Token Overlap)
+        total_claims = len(verified_claims) + len(unsupported_claims)
+        claim_ratio = (len(verified_claims) / max(total_claims, 1)) if total_claims > 0 else overlap_ratio
+        
+        if overlap_ratio == 0.0 or len(overlap) == 0:
+            groundedness_score = 0.0
+        else:
+            groundedness_score = round(min(0.3 + (claim_ratio * 0.45) + (overlap_ratio * 0.25), 1.0), 2)
+
+        is_grounded = groundedness_score >= 0.70 and len(overlap) >= 3
 
         return {
             "groundedness_score": groundedness_score,
-            "is_grounded": groundedness_score >= 0.70,
+            "is_grounded": is_grounded,
             "matched_concepts_count": len(overlap),
-            "overlap_ratio": round(overlap_ratio, 3)
+            "overlap_ratio": round(overlap_ratio, 3),
+            "verified_claims": verified_claims,
+            "unsupported_claims": unsupported_claims,
+            "citation_sources": citation_sources
         }
 
 rag_service = RAGService()

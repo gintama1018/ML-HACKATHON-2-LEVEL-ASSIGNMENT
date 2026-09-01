@@ -190,6 +190,8 @@ class EvaluationResponse(BaseModel):
     current_difficulty: Optional[str] = "Intermediate"
     is_mastered: bool = False
     is_session_advanced: bool = False
+    mastery_state: Optional[str] = "not_started"  # confirmed, provisional, in_remediation, not_started
+    mastery_evidence: Optional[str] = None
     ai_mode: Optional[str] = "live"  # live, fallback
     evaluated_at: datetime
 

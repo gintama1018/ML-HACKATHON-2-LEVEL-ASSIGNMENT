@@ -51,6 +51,15 @@ def test_attack_01_tts_failure_audio_muxing_resilience():
     assert "Audio:" in stderr_output
     assert result["total_duration_seconds"] > 3.0
 
+    # 3. Verify that total speech synthesis failure raises RuntimeError (NO 440Hz beep disguised as speech)
+    from unittest.mock import patch
+    with patch('gtts.gTTS.save', side_effect=Exception("Network down")), \
+         patch('pyttsx3.init', side_effect=Exception("No audio device")):
+        with pytest.raises(RuntimeError) as exc_info:
+            video_generator.generate_audio("Test failure", "English", "./static/videos/fail_test.mp3")
+        assert "Speech audio synthesis failed" in str(exc_info.value)
+
+
 def test_attack_02_universal_remediation_on_non_physics_topic():
     """
     Judge Attack Test 2:

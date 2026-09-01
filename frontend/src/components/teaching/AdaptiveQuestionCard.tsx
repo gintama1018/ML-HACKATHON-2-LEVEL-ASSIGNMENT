@@ -186,13 +186,29 @@ export const AdaptiveQuestionCard: React.FC<AdaptiveQuestionCardProps> = ({
         <div className="space-y-3 pt-1">
           {localEval.correct ? (
             <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Correct! Concept Mastery Confirmed.</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    {localEval.mastery_state === "confirmed"
+                      ? "Confirmed Mastery Achieved!"
+                      : "Provisional Concept Mastery Verified"}
+                  </span>
+                </div>
+                {localEval.mastery_state && (
+                  <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                    {localEval.mastery_state}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-emerald-950 leading-relaxed">
                 {localEval.feedback || localEval.notes || "You have correctly applied the fundamental relationship."}
               </p>
+              {localEval.mastery_evidence && (
+                <p className="text-[11px] text-emerald-700 bg-emerald-100/60 p-2 rounded-xl border border-emerald-200/60 font-medium">
+                  <span className="font-bold">Mastery Evidence:</span> {localEval.mastery_evidence}
+                </p>
+              )}
               <div className="pt-1 flex justify-end">
                 <button
                   type="button"

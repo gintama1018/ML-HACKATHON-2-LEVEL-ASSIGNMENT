@@ -8,7 +8,7 @@ import { Whiteboard } from "@/components/whiteboard/Whiteboard";
 import { AdaptiveQuestionCard } from "@/components/teaching/AdaptiveQuestionCard";
 import { RAGCitationChip } from "@/components/teaching/RAGCitationChip";
 import { speechController } from "@/lib/speech";
-import { api, LessonSession, EvaluationResponse, AskTeacherResponse, VideoJobResponse } from "@/lib/api";
+import { api, LessonSession, EvaluationResponse, AskTeacherResponse, VideoJobResponse, getVideoUrl } from "@/lib/api";
 import { useLanguage, SupportedLanguage } from "@/context/LanguageContext";
 import {
   Play,
@@ -543,7 +543,7 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                     </p>
                   </div>
                   <a
-                    href={`http://localhost:8000${videoData.video_url}`}
+                    href={getVideoUrl(videoData.video_url)}
                     download
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition interactive-tactile"
                   >
@@ -556,7 +556,7 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
                   <video
                     controls
                     autoPlay
-                    src={`http://localhost:8000${videoData.video_url}`}
+                    src={getVideoUrl(videoData.video_url)}
                     className="w-full h-full object-contain"
                   />
                 </div>

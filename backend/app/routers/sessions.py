@@ -558,7 +558,10 @@ def submit_student_answer(
     new_explanation = None
     new_question_data = None
 
-    # 3. Stateful Difficulty & Adaptive Remediation State Machine
+    # 3. Stateful Difficulty & Multi-Tier Evidence-Based Mastery State Machine
+    mastery_state = "not_started"
+    mastery_evidence = ""
+
     if is_correct:
         session.consecutive_correct = (session.consecutive_correct or 0) + 1
         session.consecutive_incorrect = 0
@@ -570,13 +573,27 @@ def submit_student_answer(
             elif session.current_difficulty == "Intermediate":
                 session.current_difficulty = "Advanced"
 
+        # Evidence-Based Mastery Confirmation
+        if question.is_adaptive_followup:
+            mastery_state = "confirmed"
+            mastery_evidence = "Remediation follow-up successfully resolved with alternative mental model."
+            feedback = "Correct! You successfully applied the alternative mental model and mastered this concept."
+        elif confidence >= 0.85:
+            mastery_state = "confirmed"
+            mastery_evidence = f"High-confidence conceptual demonstration ({confidence:.2f}) verified on initial assessment."
+            feedback = "Correct! Excellent intuition and confirmed mastery of this concept."
+        else:
+            mastery_state = "provisional"
+            mastery_evidence = f"Provisional conceptual understanding ({confidence:.2f}) demonstrated."
+            feedback = "Good answer! Concept understanding verified."
+
         if current_segment:
             current_segment.is_mastered = True
         db.commit()
 
-        feedback = "Correct! Excellent intuition and mastery of this concept."
-
     else:
+        mastery_state = "in_remediation"
+        mastery_evidence = "Conceptual misconception detected. Scaffolded alternative explanation and targeted follow-up deployed."
         session.consecutive_incorrect = (session.consecutive_incorrect or 0) + 1
         session.consecutive_correct = 0
 
@@ -721,6 +738,8 @@ def submit_student_answer(
         current_difficulty=session.current_difficulty,
         is_mastered=is_correct,
         is_session_advanced=is_correct,
+        mastery_state=mastery_state,
+        mastery_evidence=mastery_evidence,
         ai_mode=ai_mode,
         evaluated_at=eval_entity.evaluated_at
     )

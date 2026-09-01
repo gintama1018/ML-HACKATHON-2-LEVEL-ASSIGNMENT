@@ -1,4 +1,10 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+
+export function getVideoUrl(path: string | undefined | null): string {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 
 export interface StudentProfile {
   id: string;
@@ -148,6 +154,8 @@ export interface EvaluationResponse {
   current_difficulty?: string;
   is_mastered?: boolean;
   is_session_advanced: boolean;
+  mastery_state?: string;
+  mastery_evidence?: string;
   evaluated_at: string;
 }
 

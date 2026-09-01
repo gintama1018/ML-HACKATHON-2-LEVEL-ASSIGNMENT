@@ -45,7 +45,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   const navItems = [
     { label: t("nav.dashboard"), href: "/", icon: LayoutDashboard },
-    { label: "Learning Paths", href: "/learning-paths", icon: Compass },
+    { label: t("nav.learning_paths"), href: "/learning-paths", icon: Compass },
     { label: t("nav.new_lesson"), href: "/lessons/new", icon: Plus, isPrimary: true },
     { label: t("nav.history"), href: "/profile", icon: History },
     { label: t("nav.settings"), href: "/settings", icon: SettingsIcon },
@@ -78,10 +78,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-heading font-extrabold text-sm text-[#0f172a] tracking-tight">
-              Bharat Academix
+              {t("app.title")}
             </span>
             <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded hidden sm:inline-block">
-              AI Gurukul
+              {t("app.subtitle")}
             </span>
           </div>
         </Link>
@@ -131,7 +131,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <div className="w-5 h-5 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[11px] font-bold">
               <User className="w-3 h-3" />
             </div>
-            <span className="text-xs font-semibold text-[#0f172a] hidden sm:inline-block">Student</span>
+            <span className="text-xs font-semibold text-[#0f172a] hidden sm:inline-block">
+              {t("user.student")}
+            </span>
           </Link>
         </div>
       </header>
@@ -158,8 +160,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     isActive
                       ? "bg-white text-[#0f172a] font-bold shadow-xs"
                       : item.isPrimary
-                      ? "bg-slate-800 text-white hover:bg-slate-700"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800"
+                      ? "bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                      : "text-slate-300 hover:text-white hover:bg-slate-800"
                   }`}
                 >
                   <Icon className="w-4 h-4" />

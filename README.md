@@ -432,6 +432,47 @@ venv\Scripts\pytest tests/test_golden_path_e2e.py -v
 
 ---
 
+## Deployment
+
+Bharat Academix is structured for cloud deployments across serverless, PaaS, and containerized hosts:
+
+### 1. Frontend Deployment (Vercel)
+- **Platform**: [Vercel](https://vercel.com/)
+- **Framework Preset**: Next.js 16 (App Router)
+- **Root Directory**: `frontend`
+- **Build Command**: `npm run build`
+- **Output Directory**: `.next`
+- **Environment Variables**:
+  - `NEXT_PUBLIC_API_BASE`: `https://your-backend-api.onrender.com` (point to live backend)
+
+### 2. Backend Deployment (Render / Railway / Fly.io)
+- **Platform**: [Render](https://render.com/) or [Railway](https://railway.app/)
+- **Runtime**: Python 3.11+
+- **Root Directory**: `backend`
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **System Packages**: Ensure `ffmpeg` is installed for video synthesis muxing.
+- **Environment Variables**:
+  - `GEMINI_API_KEY`: Your Google Gemini API Key
+  - `LLM_PROVIDER`: `gemini`
+  - `GEMINI_REASONING_MODEL`: `gemini-1.5-pro`
+  - `GEMINI_FAST_MODEL`: `gemini-1.5-flash`
+
+### 3. Docker Containerization
+```dockerfile
+# Dockerfile for Backend Service
+FROM python:3.11-slim
+RUN apt-get update && apt-get install -y ffmpeg libespeak1 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+---
+
 ## Evaluation Criteria Mapping
 
 | Area | Weight | Status | Where to see it |

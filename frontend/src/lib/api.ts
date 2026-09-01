@@ -505,7 +505,6 @@ export const api = {
     if (!res.ok) throw new Error("Failed to generate learning path");
     return res.json();
   },
-
   async updateModuleProgress(pathId: string, moduleId: string, payload: { is_completed?: boolean; score?: number }): Promise<LearningPathModule> {
     const res = await fetch(`${API_BASE}/learning-paths/${pathId}/modules/${moduleId}`, {
       method: "PATCH",
@@ -514,5 +513,33 @@ export const api = {
     });
     if (!res.ok) throw new Error("Failed to update module progress");
     return res.json();
+  },
+
+  async getSystemStatus(): Promise<{
+    is_live_ai: boolean;
+    active_provider: string;
+    has_gemini: boolean;
+    has_claude: boolean;
+    gemini_model: string;
+    claude_model: string;
+    rag_embeddings: string;
+    video_engine: string;
+  }> {
+    try {
+      const res = await fetch(`${API_BASE}/system/status`);
+      if (!res.ok) throw new Error("Failed to get system status");
+      return res.json();
+    } catch {
+      return {
+        is_live_ai: false,
+        active_provider: "Resilient Offline Mode",
+        has_gemini: false,
+        has_claude: false,
+        gemini_model: "gemini-1.5-pro",
+        claude_model: "claude-3-7-sonnet-20250219",
+        rag_embeddings: "Deterministic 384-dim fallback",
+        video_engine: "FFmpeg 720p H.264 / Viseme Muxer"
+      };
+    }
   },
 };

@@ -13,9 +13,12 @@ import {
   Globe,
   WifiOff,
   User,
-  ChevronDown
+  ChevronDown,
+  Sparkles,
+  ShieldCheck
 } from "lucide-react";
 import { useLanguage, SupportedLanguage } from "@/context/LanguageContext";
+import { api } from "@/lib/api";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -27,6 +30,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [isOffline, setIsOffline] = useState(false);
   const { language, setLanguage, t } = useLanguage();
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<{ is_live_ai: boolean; active_provider: string } | null>(null);
 
   const isClassroom = pathname.startsWith("/sessions/");
 
@@ -36,6 +40,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+
+    // Fetch system AI live mode status
+    api.getSystemStatus().then((res) => setSystemStatus(res)).catch(() => {});
 
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -86,8 +93,33 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </div>
         </Link>
 
-        {/* Utilities: Language + Profile */}
+        {/* Utilities: AI Status + Language + Profile */}
         <div className="flex items-center gap-2">
+          {/* AI Mode Indicator Badge */}
+          {systemStatus && (
+            <div
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition ${
+                systemStatus.is_live_ai
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  : "bg-slate-100 text-slate-700 border-slate-200"
+              }`}
+              title={systemStatus.is_live_ai ? "Live LLM Engine Connected" : "Deterministic Offline Air-Gap Scaffolds Active"}
+            >
+              {systemStatus.is_live_ai ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                  <span>{systemStatus.active_provider}</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3 h-3 text-slate-500" />
+                  <span>Air-Gap Mode</span>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Language Selector */}
           <div className="relative">
             <button

@@ -23,7 +23,9 @@ import {
   Send,
   Sparkles,
   Download,
-  AlertCircle
+  AlertCircle,
+  Mic,
+  MicOff
 } from "lucide-react";
 
 interface SessionPageProps {
@@ -219,6 +221,42 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
       }
     } catch (err: any) {
       console.error("Failed to re-explain:", err);
+    }
+  };
+
+  const [isListeningMic, setIsListeningMic] = useState(false);
+
+  const toggleVoiceInput = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is supported in Chrome, Edge, and Safari.");
+      return;
+    }
+
+    if (isListeningMic) {
+      setIsListeningMic(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = session?.language === "Hindi" ? "hi-IN" : (session?.language === "Tamil" ? "ta-IN" : (session?.language === "Bengali" ? "bn-IN" : "en-IN"));
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => setIsListeningMic(true);
+      recognition.onend = () => setIsListeningMic(false);
+      recognition.onerror = () => setIsListeningMic(false);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setDoubtInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        setIsListeningMic(false);
+      };
+
+      recognition.start();
+    } catch {
+      setIsListeningMic(false);
     }
   };
 
@@ -561,18 +599,30 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
               </button>
             </div>
 
-            <form onSubmit={handleAskDoubt} className="flex gap-2">
+            <form onSubmit={handleAskDoubt} className="flex items-center gap-2">
               <input
                 type="text"
                 value={doubtInput}
                 onChange={(e) => setDoubtInput(e.target.value)}
-                placeholder="Ask any question about this concept..."
+                placeholder="Ask any question or speak your doubt..."
                 className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
               />
               <button
+                type="button"
+                onClick={toggleVoiceInput}
+                className={`p-2 rounded-full border transition interactive-tactile cursor-pointer shrink-0 ${
+                  isListeningMic
+                    ? "bg-rose-600 text-white border-rose-700 animate-pulse"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200"
+                }`}
+                title={isListeningMic ? "Listening to your voice..." : "Click to speak your doubt"}
+              >
+                {isListeningMic ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              </button>
+              <button
                 type="submit"
                 disabled={isAskingDoubt || !doubtInput.trim()}
-                className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white rounded-full transition interactive-tactile cursor-pointer"
+                className="px-4 py-2 bg-[#0f172a] hover:bg-slate-800 disabled:opacity-40 text-white rounded-full transition interactive-tactile cursor-pointer shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>

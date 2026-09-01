@@ -43,21 +43,16 @@ class UnifiedLLMService:
 
     def _call_gemini(self, model_name: str, system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
         """Call Google Gemini API with system instructions"""
-        # Map fallback names to available gemini models if needed
-        actual_model = model_name
-        if "2.5" in model_name:
-            actual_model = "gemini-1.5-pro" if "pro" in model_name else "gemini-1.5-flash"
-
         try:
             model = genai.GenerativeModel(
-                model_name=actual_model,
+                model_name=model_name,
                 system_instruction=system_prompt,
                 generation_config={"temperature": temperature}
             )
             response = model.generate_content(user_prompt)
             return response.text
         except Exception as e:
-            logger.warning(f"Gemini generation with {actual_model} failed: {e}. Trying gemini-1.5-flash.")
+            logger.warning(f"Gemini generation with {model_name} failed: {e}. Trying gemini-1.5-flash fallback.")
             model = genai.GenerativeModel(
                 model_name="gemini-1.5-flash",
                 system_instruction=system_prompt,

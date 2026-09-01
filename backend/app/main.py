@@ -51,10 +51,26 @@ def health_check():
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
-        "claude_reasoning_model": settings.CLAUDE_REASONING_MODEL,
-        "claude_fast_model": settings.CLAUDE_FAST_MODEL,
+        "llm_provider": settings.LLM_PROVIDER,
         "database": "connected",
         "video_engine": "ready"
+    }
+
+@app.get("/system/status")
+def system_status():
+    has_gemini = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE")
+    has_claude = bool(settings.ANTHROPIC_API_KEY)
+    is_live = has_gemini or has_claude
+    active_provider = "Google Gemini 1.5 Pro" if has_gemini else ("Anthropic Claude 3.7" if has_claude else "Resilient Air-Gap Mode")
+    return {
+        "is_live_ai": is_live,
+        "active_provider": active_provider,
+        "has_gemini": has_gemini,
+        "has_claude": has_claude,
+        "gemini_model": settings.GEMINI_REASONING_MODEL,
+        "claude_model": settings.CLAUDE_REASONING_MODEL,
+        "rag_embeddings": "SentenceTransformers MiniLM-L6-v2 (with offline fallback)",
+        "video_engine": "FFmpeg 720p H.264 / Viseme Muxer"
     }
 
 @app.exception_handler(Exception)

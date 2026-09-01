@@ -95,7 +95,7 @@ Bharat Academix is an end-to-end autonomous educational engine:
 
 ```mermaid
 flowchart TD
-    User([Learner Browser]) <-->|Next.js 14 Client| Frontend[Frontend UI Layer<br/>React / TypeScript / TailwindCSS]
+    User([Learner Browser]) <-->|Next.js 16 Client| Frontend[Frontend UI Layer<br/>React / TypeScript / TailwindCSS]
     
     subgraph Frontend Layer
         AppShell[AppShell & Floating Dock]
@@ -152,7 +152,7 @@ flowchart TD
 ```
 
 ### Architectural Layers
-1. **Frontend Presentation**: Next.js 14 App Router application styled with the Digital Gurukul Corporate Modern design tokens (Deep Navy `#0F172A`, Emerald `#10B981`, Warm Amber `#F59E0B`). Communicates via strongly-typed REST API clients (`lib/api.ts`).
+1. **Frontend Presentation**: Next.js 16 App Router application styled with the Digital Gurukul Corporate Modern design tokens and sleek capsule pill geometry (Deep Navy `#0F172A`, Emerald `#10B981`, Warm Amber `#F59E0B`). Communicates via strongly-typed REST API clients (`lib/api.ts`).
 2. **Backend API**: FastAPI application serving 9 modular routers managing student profiles, document uploads, content extraction, session progress, answers, learning paths, assessments, video rendering, and diagnostics.
 3. **AI Agent Orchestrator**: Manages execution flow across 10 specialized agent functions, supporting Anthropic Claude (`claude-sonnet-5` / `claude-haiku-4-5`) and Google Gemini (`gemini-2.5-pro` / `gemini-2.5-flash`) with automatic failover and exponential retry.
 4. **Data & Vector Persistence**: SQLite database via SQLAlchemy ORM (15 entity models) for relational progress tracking alongside ChromaDB persistent vector storage (`./data/chroma_db`) with offline-resilient embeddings.
@@ -382,17 +382,18 @@ Create `backend/.env` (optional for local fallback evaluation, supported for liv
 ### Running Test Suite
 
 ```bash
-# Run unit and plumbing tests:
-backend\venv\Scripts\pytest backend/tests/test_m1_plumbing.py -v
+# Run the complete test suite (18 tests passing 100%):
+cd backend
+venv\Scripts\pytest -v
 
-# Run adaptive misconception loop tests:
-backend\venv\Scripts\pytest backend/tests/test_m2b_adaptive_loop.py -v
-
-# Run Judge Attack Demo Hardening test suite:
-backend\venv\Scripts\pytest backend/tests/test_judge_attack_hardening.py -v
+# Run specific domain test suites:
+venv\Scripts\pytest tests/test_judge_attack_hardening.py -v
+venv\Scripts\pytest tests/test_m2b_adaptive_loop.py -v
+venv\Scripts\pytest tests/test_m1_plumbing.py -v
+venv\Scripts\pytest tests/test_m3_assessment_report.py -v
 
 # Run Golden Path End-to-End integration test:
-backend\venv\Scripts\python backend/tests/test_golden_path_e2e.py
+venv\Scripts\pytest tests/test_golden_path_e2e.py -v
 ```
 
 ---

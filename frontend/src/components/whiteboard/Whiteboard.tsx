@@ -132,21 +132,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
                 <text x="135" y="18" fill="#f472b6" fontSize="9" fontWeight="bold">Transition State (Ea)</text>
                 <text x="35" y="70" fill="#34d399" fontSize="9" fontWeight="bold">Reactants [A+B]</text>
                 <text x="210" y="80" fill="#60a5fa" fontSize="9" fontWeight="bold">Products [C+D]</text>
-              </svg>
-            </div>
-            <p className="text-[10px] text-slate-400 text-center">
-              Activation barrier dynamics governing thermodynamic equilibrium
-            </p>
-          </div>
-        )}
-
-        {/* MODE 4: DIAGRAM / CIRCUITS */}
+        {/* MODE 4: DIAGRAM (CIRCUITS & SCHEMATICS) */}
         {visualType === "diagram" && (
-          <div className="w-full h-full flex flex-col items-center justify-between p-1.5">
-            <div className="w-full max-w-md h-36 relative flex items-center justify-center">
-              <svg className="w-full h-full" viewBox="0 0 320 110">
-                <rect x="30" y="20" width="260" height="70" rx="8" fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="6 3" />
-                <line x1="30" y1="50" x2="30" y2="60" stroke="#10b981" strokeWidth="4" />
+          <div className="w-full h-full flex flex-col items-center justify-center p-2 space-y-2">
+            <div className="w-full max-w-xs h-28 border border-slate-700/80 rounded-lg p-2 bg-slate-900/90 flex items-center justify-center">
+              <svg viewBox="0 0 300 100" className="w-full h-full">
+                <rect x="30" y="20" width="240" height="60" fill="none" stroke="#64748b" strokeWidth="2" />
+                <circle cx="30" cy="50" r="14" fill="#1e293b" stroke="#10b981" strokeWidth="2" />
+                <text x="25" y="48" fill="#10b981" fontSize="10" fontWeight="bold">+</text>
+                <text x="26" y="60" fill="#10b981" fontSize="10" fontWeight="bold">-</text>
                 <text x="15" y="58" fill="#10b981" fontSize="10" fontWeight="bold">V</text>
                 <path d="M 130 20 L 140 10 L 150 30 L 160 10 L 170 30 L 180 20" fill="none" stroke="#f59e0b" strokeWidth="2.5" />
                 <text x="140" y="8" fill="#f59e0b" fontSize="9" fontWeight="bold">Resistor (R)</text>
@@ -156,6 +150,58 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ concept, visualType, vis
             </div>
             <p className="text-[10px] text-slate-400 text-center">
               Closed loop voltage source driving electron flow through resistance.
+            </p>
+          </div>
+        )}
+
+        {/* MODE 4B: BIOLOGY (CELLULAR & ORGANELLE STRUCTURE) */}
+        {visualType === "biology" && (
+          <div className="w-full h-full flex flex-col items-center justify-center p-2 space-y-1.5">
+            <div className="w-full max-w-xs h-28 border border-slate-700/80 rounded-lg p-2 bg-slate-900/90 flex items-center justify-center">
+              <svg viewBox="0 0 300 100" className="w-full h-full">
+                {/* Cell Membrane */}
+                <ellipse cx="150" cy="50" rx="130" ry="42" fill="#064e3b" fillOpacity="0.4" stroke="#10b981" strokeWidth="2" strokeDasharray="4 2" />
+                {/* Nucleus */}
+                <circle cx="110" cy="50" r="22" fill="#047857" stroke="#34d399" strokeWidth="2" />
+                <circle cx="110" cy="50" r="8" fill="#a7f3d0" />
+                <text x="88" y="53" fill="#ffffff" fontSize="8" fontWeight="bold">Nucleus</text>
+                {/* Mitochondria */}
+                <ellipse cx="200" cy="40" rx="20" ry="10" fill="#b45309" stroke="#f59e0b" strokeWidth="1.5" />
+                <text x="178" y="42" fill="#fef3c7" fontSize="7" fontWeight="bold">Mitochondria</text>
+                {/* Chloroplast / Vacuole */}
+                <ellipse cx="185" cy="65" rx="16" ry="8" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="1.5" />
+                <text x="170" y="67" fill="#dbeafe" fontSize="7" fontWeight="bold">Cytoplasm</text>
+              </svg>
+            </div>
+            <p className="text-[10px] text-emerald-400 text-center font-medium">
+              Eukaryotic cellular architecture & functional organelle pathways.
+            </p>
+          </div>
+        )}
+
+        {/* MODE 4C: CHEMISTRY (REACTION PATHWAY & ACTIVATION ENERGY) */}
+        {visualType === "chemistry" && (
+          <div className="w-full h-full flex flex-col items-center justify-center p-2 space-y-1.5">
+            <div className="w-full max-w-xs h-28 border border-slate-700/80 rounded-lg p-2 bg-slate-900/90 flex items-center justify-center">
+              <svg viewBox="0 0 300 100" className="w-full h-full">
+                {/* Axes */}
+                <line x1="30" y1="85" x2="280" y2="85" stroke="#64748b" strokeWidth="1.5" />
+                <line x1="30" y1="85" x2="30" y2="15" stroke="#64748b" strokeWidth="1.5" />
+                <text x="240" y="96" fill="#94a3b8" fontSize="7">Progress →</text>
+                <text x="8" y="20" fill="#94a3b8" fontSize="7" transform="rotate(-90 8,20)">Energy (E)</text>
+                {/* Reaction Curve: Reactants -> Barrier (Transition State) -> Products */}
+                <path d="M 40 65 Q 120 65 140 25 Q 160 25 180 80 L 270 80" fill="none" stroke="#a855f7" strokeWidth="2.5" />
+                {/* Labels */}
+                <circle cx="45" cy="65" r="3" fill="#38bdf8" />
+                <text x="40" y="58" fill="#38bdf8" fontSize="8" fontWeight="bold">Reactants</text>
+                <circle cx="150" cy="25" r="3" fill="#f43f5e" />
+                <text x="135" y="18" fill="#f43f5e" fontSize="8" fontWeight="bold">Transition State (Ea)</text>
+                <circle cx="260" cy="80" r="3" fill="#10b981" />
+                <text x="240" y="74" fill="#10b981" fontSize="8" fontWeight="bold">Products (ΔH &lt; 0)</text>
+              </svg>
+            </div>
+            <p className="text-[10px] text-purple-300 text-center font-medium">
+              Thermodynamic reaction coordinate & activation energy barrier.
             </p>
           </div>
         )}

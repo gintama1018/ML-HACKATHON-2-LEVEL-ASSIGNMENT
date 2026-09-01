@@ -7,6 +7,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Plus,
+  Compass,
   History,
   Settings as SettingsIcon,
   Globe,
@@ -44,6 +45,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   const navItems = [
     { label: t("nav.dashboard"), href: "/", icon: LayoutDashboard },
+    { label: "Learning Paths", href: "/learning-paths", icon: Compass },
     { label: t("nav.new_lesson"), href: "/lessons/new", icon: Plus, isPrimary: true },
     { label: t("nav.history"), href: "/profile", icon: History },
     { label: t("nav.settings"), href: "/settings", icon: SettingsIcon },
@@ -53,6 +55,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { code: "en", label: "English", native: "English" },
     { code: "hi", label: "Hindi", native: "हिंदी" },
     { code: "hinglish", label: "Hinglish", native: "Hinglish" },
+    { code: "ta", label: "Tamil", native: "தமிழ்" },
+    { code: "bn", label: "Bengali", native: "বাংলা" },
   ];
 
   return (

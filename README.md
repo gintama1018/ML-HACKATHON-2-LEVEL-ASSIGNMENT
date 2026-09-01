@@ -240,34 +240,44 @@ When a student submits an answer or clicks "I'm not sure", the following automat
 
 ## Multi-Module Learning Paths
 
-Fulfills **REQ-67 and REQ-68** by providing persistent, structured curricula:
-- Generates ordered multi-module roadmaps (e.g. 5-8 sequential modules).
-- Module 1 is unlocked initially; subsequent modules remain locked.
-- Scoring $\ge 70\%$ on a module assessment automatically confirms mastery and unlocks the next module in the sequence.
-- Full state persists across sessions in the `learning_paths` and `learning_path_modules` database tables.
+Fulfills **REQ-67 and REQ-68** by providing persistent, structured curricula with dedicated UI management (`/learning-paths`):
+- **Dedicated Route (`/learning-paths`) & Dashboard Widget**: Students and evaluators can view their full multi-module pathway, active progress bar, and locked/unlocked modules.
+- **Autonomous Curriculum Generation**: Generates 3 to 8 progressive, sequential modules tailored to any subject from foundational intuition to capstone synthesis.
+- **Mastery Gating & Unlock Rules**: Module 1 is unlocked initially; subsequent modules remain strictly locked until the learner completes the preceding module with $\ge 70\%$ mastery score (enforced both in the UI and via server-side `403 Forbidden` API guards).
+- **Interactive Simulator**: Includes a 1-click mastery verification action to test and demonstrate progressive unlocking in real time.
+- **Full Database Persistence**: Curriculum structure, module scores, and completion timestamps persist across sessions in the `learning_paths` and `learning_path_modules` relational tables.
 
 ---
 
 ## Multilingual Implementation
 
-- **Supported Languages**: **English**, **Hindi (हिंदी)**, and **Conversational Hinglish**.
-- **Mid-Lesson Switching**: Changing the language selector in the classroom immediately calls `PATCH /session/{id}`:
-  - Explanation scripts and questions are translated into the target language.
-  - Active TTS voice instantly re-binds to matching locales (`hi-IN` for Hindi, `en-IN` for Hinglish).
-  - Avatar mouth animations synchronize to the translated audio.
-  - Session state, progress index, and past answers remain 100% preserved.
+Fulfills **REQ-40 and REQ-41** by providing broad multilingual support across Indian languages:
+- **Supported Languages (5 Total)**:
+  - **English** (Standard academic curriculum)
+  - **Hindi (हिंदी)** (Full Devanagari script and vocabulary)
+  - **Conversational Hinglish** (Natural urban Indian bilingual idiom)
+  - **Tamil (தமிழ்)** (Full Tamil script and vocabulary)
+  - **Bengali (বাংলা)** (Full Bengali script and vocabulary)
+- **Cross-Lingual Material Ingestion (REQ-40)**: Upload educational content in English (PDF/DOCX/TXT) and request teaching delivery in Hindi, Tamil, or Bengali — the RAG pipeline extracts grounded facts and synthesizes explanations and questions directly in the target language script.
+- **Mid-Lesson Instant Switching**: Changing the language selector in the classroom or top navbar immediately updates `PATCH /session/{id}`:
+  - Explanation scripts, follow-up questions, and whiteboard labels are rendered in the target language.
+  - Active TTS voice automatically re-binds to matching locales (`hi-IN`, `ta-IN`, `bn-IN`, `en-IN`).
+  - Session step index, difficulty level, and response history remain 100% preserved without reload.
 
 ---
 
 ## Voice & Dual-Mode Video Synthesis
 
 1. **Interactive In-Browser Stage**:
-   - Word-boundary-timed SVG mouth animations driven by `SpeechSynthesisUtterance.onboundary`.
-   - Mood expressions (`explaining`, `thinking`, `encouraging`).
+   - **Multi-Viseme Phoneme Mapping**: SVG teacher avatar renders 5 distinct mouth visemes (`rounded`, `narrow`, `wide`, `open`, `closed`) dynamically matched to spoken word phonetic patterns.
+   - **Natural Micro-Animations**: Continuous 60fps breathing micro-sway (`translate3d(swayX, swayY, 0)`) and mood-adaptive eye saccades (`explaining`, `thinking`, `encouraging`).
 2. **Server-Side 720p MP4 Video Engine**:
-   - Multi-scene storyboard synthesis with top timers, animated avatar, subject whiteboard, and synchronized subtitles.
-   - 3-tier resilient audio pipeline: Cloud `gTTS` $\rightarrow$ Local `pyttsx3` speech engine $\rightarrow$ Valid `libmp3lame` container fallback.
-   - Produces playable, downloadable `.mp4` video files.
+   - Multi-scene storyboard synthesis with progress timers, animated teacher avatar, domain whiteboard diagrams, and burned synchronized subtitles.
+   - **3-Tier Resilient Audio Pipeline**:
+     1. Cloud `gTTS` with sentence-boundary chunking and seamless FFmpeg audio concatenation.
+     2. Local native `pyttsx3` speech synthesis engine.
+     3. Valid `libmp3lame` emergency audio stream fallback for air-gapped test environments.
+   - Generates playable, downloadable `.mp4` video files served at `/static/videos/{session_id}.mp4`.
 
 ---
 
@@ -514,6 +524,8 @@ ML-HACKATHON-2-LEVEL-ASSIGNMENT/
 │   │   │   │       ├── assessment/page.tsx
 │   │   │   │       ├── report/page.tsx
 │   │   │   │       └── page.tsx
+│   │   │   ├── learning-paths/
+│   │   │   │   └── page.tsx
 │   │   │   ├── profile/page.tsx
 │   │   │   ├── settings/page.tsx
 │   │   │   ├── globals.css

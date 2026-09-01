@@ -201,3 +201,46 @@ def test_attack_04_multilingual_patch_preserves_session_state():
     assert res.status_code == 200
     hindi_expl = res.json()["new_explanation"]
     assert len(hindi_expl) > 20
+
+def test_attack_05_cross_lingual_material_rag_hindi_teaching():
+    """
+    Judge Attack Test 5 (REQ-40):
+    Upload English educational material, generate a lesson requesting Hindi language,
+    and verify that teaching delivery and question prompt contain Devanagari Hindi text
+    grounded in the English source document.
+    """
+    # 1. Upload English document
+    doc_content = (
+        "Thermodynamics First Law: Energy cannot be created or destroyed, only transformed. "
+        "The change in internal energy equals heat added minus work done by the system: Delta U = Q - W."
+    )
+    files = {"file": ("thermodynamics_en.txt", doc_content.encode("utf-8"), "text/plain")}
+    res = client.post("/materials/upload", files=files)
+    assert res.status_code == 200
+    mat = res.json()
+    mat_id = mat["id"]
+
+    # 2. Generate Hindi lesson from English material
+    res = client.post("/lessons/generate", json={
+        "source_type": "material",
+        "material_id": mat_id,
+        "language": "Hindi",
+        "topic": "Thermodynamics First Law"
+    })
+    assert res.status_code == 200
+    lesson = res.json()
+    assert lesson["status"] == "draft"
+
+    # 3. Create Session & verify Devanagari characters in explanation or question
+    res = client.post("/session/create", json={"lesson_id": lesson["id"]})
+    assert res.status_code == 200
+    session = res.json()
+    assert session["language"] == "Hindi"
+    
+    seg = session["current_segment"]
+    q = session["current_question"]
+    combined_text = (seg.get("explanation_text", "") or "") + " " + (q.get("prompt", "") or "")
+    
+    # Check for Devanagari Unicode range (\u0900-\u097F)
+    has_devanagari = any("\u0900" <= char <= "\u097F" for char in combined_text)
+    assert has_devanagari, f"Devanagari text not found in cross-lingual output: {combined_text}"

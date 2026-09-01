@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
-import { api, StudentProfile, Lesson } from "@/lib/api";
+import { api, StudentProfile, Lesson, LearningPath } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   PlusCircle,
@@ -16,7 +16,11 @@ import {
   RotateCcw,
   Zap,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Compass,
+  Layers,
+  Lock,
+  Unlock
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -24,6 +28,7 @@ export default function DashboardPage() {
   const { t } = useLanguage();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
   const [quickTopic, setQuickTopic] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,8 +46,12 @@ export default function DashboardPage() {
     try {
       const student = await api.getDefaultStudent();
       setProfile(student);
-      const lessonList = await api.listLessons(student.id);
+      const [lessonList, pathList] = await Promise.all([
+        api.listLessons(student.id),
+        api.getLearningPaths(student.id)
+      ]);
       setLessons(lessonList);
+      setLearningPaths(pathList);
     } catch (err: any) {
       setError(err.message || "Failed to load lessons");
     } finally {
@@ -210,6 +219,78 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* 2.5 Active Multi-Module Learning Path Section */}
+        {learningPaths.length > 0 && (
+          <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1 bg-emerald-100 text-emerald-800 rounded-md">
+                  <Compass className="w-4 h-4" />
+                </span>
+                <h3 className="font-heading font-bold text-sm text-[#0b1c30]">
+                  Active Learning Path: {learningPaths[0].topic}
+                </h3>
+              </div>
+              <Link
+                href="/learning-paths"
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+              >
+                <span>View Full Curriculum</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Modules Horizontal Progression Scroller */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+              {learningPaths[0].modules?.slice(0, 4).map((mod) => (
+                <div
+                  key={mod.id}
+                  className={`p-3 rounded-lg border text-xs flex flex-col justify-between space-y-2 ${
+                    mod.is_completed
+                      ? "bg-emerald-50/60 border-emerald-200"
+                      : mod.is_unlocked
+                      ? "bg-white border-emerald-500 ring-1 ring-emerald-500/20"
+                      : "bg-slate-50 border-slate-200 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      Module {mod.module_order}
+                    </span>
+                    {mod.is_completed ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : mod.is_unlocked ? (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    ) : (
+                      <Lock className="w-3 h-3 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="font-bold text-slate-800 line-clamp-1">
+                    {mod.title}
+                  </div>
+                  {mod.is_unlocked && !mod.is_completed ? (
+                    <button
+                      onClick={() => handleStartQuickTopic(`${learningPaths[0].topic}: ${mod.title}`)}
+                      className="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition flex items-center justify-center gap-1"
+                    >
+                      <PlayCircle className="w-3 h-3" />
+                      <span>Start Now</span>
+                    </button>
+                  ) : mod.is_completed ? (
+                    <div className="text-[10px] font-bold text-emerald-700">
+                      Mastery: {mod.score ? `${mod.score.toFixed(0)}%` : "100%"}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-400 font-medium">
+                      Locked
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 3. Recent Lessons List */}
         <div className="space-y-3 pt-2">

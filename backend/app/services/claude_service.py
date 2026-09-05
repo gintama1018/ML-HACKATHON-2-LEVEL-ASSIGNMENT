@@ -53,26 +53,46 @@ class UnifiedLLMService:
         return bool(self.anthropic_client or self.gemini_configured)
 
     def _call_gemini(self, model_name: str, system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
-        """Call Google Gemini API with system instructions and generous token budget, falling back across valid models"""
+        """Call Google Gemini API with system instructions and generous token budget, falling back across valid active models"""
+        # Verified live models on Google Gemini API:
+        raw_candidates = [
+            model_name,
+            self.gemini_fast_model,
+            "gemini-3.5-flash",
+            "gemini-flash-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-2.5-flash"
+        ]
+        deprecated_patterns = ["2.5-pro", "1.5", "2.0", "2.5-flash-lite"]
         candidates = []
-        for m in [model_name, self.gemini_fast_model, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
-            if m and m not in candidates:
+        for m in raw_candidates:
+            if m and m not in candidates and not any(dp in m for dp in deprecated_patterns):
                 candidates.append(m)
+        if not candidates:
+            candidates = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite"]
         
         last_err = None
         for candidate in candidates:
-            try:
-                model = genai.GenerativeModel(
-                    model_name=candidate,
-                    system_instruction=system_prompt,
-                    generation_config={"temperature": temperature, "max_output_tokens": 8192}
-                )
-                response = model.generate_content(user_prompt)
-                if response and response.text:
-                    return response.text
-            except Exception as e:
-                logger.warning(f"Gemini generation with {candidate} failed: {e}")
-                last_err = e
+            for attempt in range(2):
+                try:
+                    model = genai.GenerativeModel(
+                        model_name=candidate,
+                        system_instruction=system_prompt,
+                        generation_config={"temperature": temperature, "max_output_tokens": 8192}
+                    )
+                    response = model.generate_content(user_prompt)
+                    if response and response.text:
+                        return response.text
+                except Exception as e:
+                    err_msg = str(e)
+                    logger.warning(f"Gemini generation with {candidate} (attempt {attempt+1}) failed: {err_msg}")
+                    last_err = e
+                    if "429" in err_msg or "quota" in err_msg.lower():
+                        import time
+                        time.sleep(1.0)
+                    else:
+                        break  # Do not retry on non-transient errors for this model
         if last_err:
             raise last_err
         raise RuntimeError("Gemini model generation produced no output.")

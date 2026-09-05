@@ -233,13 +233,18 @@ class RAGService:
                 if hasattr(claude_service, "gemini_configured") and claude_service.gemini_configured:
                     try:
                         import google.generativeai as genai
-                        model = genai.GenerativeModel("gemini-2.5-flash")
-                        prompt = "Extract all educational text, mathematical formulas, chapter headings, and key points from this study material/textbook image accurately and completely:"
-                        resp = model.generate_content([prompt, img])
-                        if resp and resp.text:
-                            extracted_text = resp.text.strip()
-                    except Exception as ge:
-                        logger.warning(f"Gemini multimodal OCR failed: {ge}")
+                        for v_model in ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"]:
+                            try:
+                                model = genai.GenerativeModel(v_model)
+                                prompt = "Extract all educational text, mathematical formulas, chapter headings, and key points from this study material/textbook image accurately and completely:"
+                                resp = model.generate_content([prompt, img])
+                                if resp and resp.text:
+                                    extracted_text = resp.text.strip()
+                                    break
+                            except Exception as ge:
+                                logger.warning(f"Gemini multimodal OCR with {v_model} failed: {ge}")
+                    except Exception as oe:
+                        logger.warning(f"Failed to import/run Gemini vision: {oe}")
 
                 if not extracted_text:
                     try:

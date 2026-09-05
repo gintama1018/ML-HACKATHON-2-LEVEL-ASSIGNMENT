@@ -63,10 +63,15 @@ app = FastAPI(
 )
 
 # Enable CORS for Next.js frontend (Supports Vercel deployments & localhost)
+default_origins = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "https://ml-hackathon-2-level-assignment.vercel.app",
+]
 cors_env = os.getenv("CORS_ORIGINS", "")
-allowed_origins = [orig.strip() for orig in cors_env.split(",") if orig.strip()]
-if not allowed_origins:
-    allowed_origins = ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000"]
+custom_origins = [orig.strip() for orig in cors_env.split(",") if orig.strip()]
+allowed_origins = list(set(default_origins + custom_origins))
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,6 +81,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def ensure_cors_headers(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        res = Response(status_code=204)
+        if origin:
+            res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+            res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            res.headers["Access-Control-Allow-Headers"] = "*"
+        return res
+    
+    response = await call_next(request)
+    if origin and (
+        "vercel.app" in origin or 
+        "localhost" in origin or 
+        "127.0.0.1" in origin or 
+        origin in allowed_origins
+    ):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # Mount Static & Uploads directory
 app.mount("/static", StaticFiles(directory="./static"), name="static")

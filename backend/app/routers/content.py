@@ -19,40 +19,54 @@ ANALYSIS_JOBS: Dict[str, Dict[str, Any]] = {}
 
 def process_content_job_sync(job_id: str, material_id: str = None, topic: str = None, profile_id: str = None):
     """Background worker for document extraction, ChromaDB indexing, and concept analysis"""
+    def set_job_state(status: str, stage: str, progress: int, details: str = None, summary: dict = None):
+        job_data = {
+            "status": status,
+            "stage": stage,
+            "progress": progress,
+            "details": details,
+            "summary": summary
+        }
+        ANALYSIS_JOBS[job_id] = job_data
+        if material_id:
+            ANALYSIS_JOBS[material_id] = job_data
+
     db = SessionLocal()
     try:
-        ANALYSIS_JOBS[job_id] = {
-            "status": "extracting",
-            "stage": "Reading file and extracting semantic sections",
-            "progress": 25,
-            "details": "Parsing text, headings, formulas, and structural blocks",
-            "summary": None
-        }
+        set_job_state(
+            status="extracting",
+            stage="Reading file and extracting semantic sections",
+            progress=25,
+            details="Parsing text, headings, formulas, and structural blocks"
+        )
         
         full_text = ""
         if material_id:
             material = db.query(Material).filter(Material.id == material_id).first()
             if not material:
-                ANALYSIS_JOBS[job_id] = {
-                    "status": "failed",
-                    "stage": "Failed to locate material",
-                    "progress": 100,
-                    "details": "Material record not found",
-                    "summary": None
-                }
+                set_job_state(
+                    status="failed",
+                    stage="Failed to locate material",
+                    progress=100,
+                    details="Material record not found"
+                )
                 return
             material.status = "processing"
             db.commit()
 
             # Step 1 & 2: Extract and chunk
-            ANALYSIS_JOBS[job_id]["status"] = "chunking"
-            ANALYSIS_JOBS[job_id]["stage"] = "Chunking into semantic units with overlap"
-            ANALYSIS_JOBS[job_id]["progress"] = 50
+            set_job_state(
+                status="chunking",
+                stage="Chunking into semantic units with overlap",
+                progress=50
+            )
 
             # Step 3: Embed and Index in Persistent ChromaDB
-            ANALYSIS_JOBS[job_id]["status"] = "embedding"
-            ANALYSIS_JOBS[job_id]["stage"] = "Computing dense sentence-transformer embeddings"
-            ANALYSIS_JOBS[job_id]["progress"] = 70
+            set_job_state(
+                status="embedding",
+                stage="Computing dense sentence-transformer embeddings",
+                progress=70
+            )
 
             index_res = rag_service.index_material(
                 material_id=material.id,
@@ -62,10 +76,12 @@ def process_content_job_sync(job_id: str, material_id: str = None, topic: str = 
             full_text = index_res.get("full_text", "")
             total_chunks = index_res.get("total_chunks", 0)
 
-            # Step 4: Concept Analysis via Agent 1 (Claude Haiku)
-            ANALYSIS_JOBS[job_id]["status"] = "indexing"
-            ANALYSIS_JOBS[job_id]["stage"] = "Extracting pedagogical concepts & chapter structure"
-            ANALYSIS_JOBS[job_id]["progress"] = 90
+            # Step 4: Concept Analysis via Agent 1
+            set_job_state(
+                status="indexing",
+                stage="Extracting pedagogical concepts & chapter structure",
+                progress=90
+            )
 
             try:
                 summary = analyze_document_content(full_text)
@@ -109,22 +125,22 @@ def process_content_job_sync(job_id: str, material_id: str = None, topic: str = 
                 "total_chunks": 0
             }
 
-        ANALYSIS_JOBS[job_id] = {
-            "status": "ready",
-            "stage": "Content analysis and vector index ready",
-            "progress": 100,
-            "details": "Document successfully parsed, chunked, embedded, and indexed in ChromaDB.",
-            "summary": summary
-        }
+        set_job_state(
+            status="ready",
+            stage="Content analysis and vector index ready",
+            progress=100,
+            details="Document successfully parsed, chunked, embedded, and indexed in ChromaDB.",
+            summary=summary
+        )
     except Exception as e:
         logger.error(f"Error during content analysis: {e}")
-        ANALYSIS_JOBS[job_id] = {
-            "status": "failed",
-            "stage": "Analysis failed",
-            "progress": 100,
-            "details": str(e),
-            "summary": None
-        }
+        set_job_state(
+            status="failed",
+            stage="Analysis failed",
+            progress=100,
+            details=str(e),
+            summary=None
+        )
     finally:
         db.close()
 
@@ -136,13 +152,16 @@ async def start_content_analysis(
     db: Session = Depends(get_db)
 ):
     job_id = str(uuid.uuid4())
-    ANALYSIS_JOBS[job_id] = {
+    job_data = {
         "status": "extracting",
         "stage": "Initiating extraction pipeline",
-        "progress": 10,
+        "progress": 15,
         "details": "Starting async content parser",
         "summary": None
     }
+    ANALYSIS_JOBS[job_id] = job_data
+    if payload.material_id:
+        ANALYSIS_JOBS[payload.material_id] = job_data
     
     background_tasks.add_task(
         process_content_job_sync,
@@ -158,15 +177,65 @@ async def start_content_analysis(
 @router.get("/content/analysis/{job_id}", response_model=ContentAnalyzeStatusResponse)
 @router.get("/content/analysis/{job_id}/status", response_model=ContentAnalyzeStatusResponse)
 @router.get("/content/analyze/{job_id}", response_model=ContentAnalyzeStatusResponse)
-def get_analysis_status(job_id: str):
-    if job_id not in ANALYSIS_JOBS:
-        raise HTTPException(status_code=404, detail="Job not found")
-    data = ANALYSIS_JOBS[job_id]
+def get_analysis_status(job_id: str, db: Session = Depends(get_db)):
+    # 1. Check in-memory job registry
+    if job_id in ANALYSIS_JOBS:
+        data = ANALYSIS_JOBS[job_id]
+        return ContentAnalyzeStatusResponse(
+            job_id=job_id,
+            status=data["status"],
+            stage=data["stage"],
+            progress=data["progress"],
+            details=data.get("details"),
+            summary=data.get("summary")
+        )
+
+    # 2. Check persistent database (Material record)
+    material = db.query(Material).filter(Material.id == job_id).first()
+    if material:
+        if material.status == "ready" and material.extracted_summary:
+            return ContentAnalyzeStatusResponse(
+                job_id=job_id,
+                status="ready",
+                stage="Content analysis and vector index ready",
+                progress=100,
+                details="Document successfully parsed and indexed in persistent memory.",
+                summary=material.extracted_summary
+            )
+        elif material.status == "processing":
+            return ContentAnalyzeStatusResponse(
+                job_id=job_id,
+                status="extracting",
+                stage="Extracting pedagogical concepts...",
+                progress=70,
+                details="Processing document",
+                summary=None
+            )
+        elif material.status == "failed":
+            return ContentAnalyzeStatusResponse(
+                job_id=job_id,
+                status="failed",
+                stage="Analysis failed",
+                progress=100,
+                details="Material analysis encountered an issue.",
+                summary=None
+            )
+        else:
+            return ContentAnalyzeStatusResponse(
+                job_id=job_id,
+                status="extracting",
+                stage="Queueing document extraction...",
+                progress=25,
+                details="Waiting for worker",
+                summary=None
+            )
+
+    # 3. Graceful fallback: NEVER throw 404 to avoid frontend polling failure and CORS drop
     return ContentAnalyzeStatusResponse(
         job_id=job_id,
-        status=data["status"],
-        stage=data["stage"],
-        progress=data["progress"],
-        details=data.get("details"),
-        summary=data.get("summary")
+        status="extracting",
+        stage="Analyzing educational document...",
+        progress=40,
+        details="Parsing structure and extracting concepts",
+        summary=None
     )

@@ -18,11 +18,9 @@ class Settings(BaseSettings):
     CLAUDE_FAST_MODEL: str = os.getenv("CLAUDE_FAST_MODEL", "claude-3-5-haiku-20241022")
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    # Current GA model IDs for Google Gemini:
-    # Reasoning/Pedagogical planning: gemini-2.5-flash (strong, structured reasoning)
-    # Fast extraction/scoring:       gemini-2.0-flash (low-latency, high throughput)
-    GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-2.5-flash")
-    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
+    # Current active working model IDs for Google Gemini:
+    GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-3.5-flash")
+    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-3.5-flash")
     
     # Storage Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

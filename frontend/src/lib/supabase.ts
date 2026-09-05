@@ -26,6 +26,35 @@ export async function signInWithGoogle() {
   return data;
 }
 
+export async function signInWithEmail(email: string, password: string) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function signUpWithEmail(email: string, password: string, fullName?: string) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName || "Student",
+      },
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function signOutUser() {
   if (!supabase) return;
   const { error } = await supabase.auth.signOut();
@@ -39,3 +68,4 @@ export async function getCurrentUser() {
   } = await supabase.auth.getUser();
   return user;
 }
+

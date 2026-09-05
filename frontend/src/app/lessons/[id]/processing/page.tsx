@@ -29,23 +29,30 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
   const [summary, setSummary] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
 
   useEffect(() => {
     const jobId = sessionStorage.getItem("current_analysis_job_id");
-    if (!jobId) {
+    
+    // Direct check on material in case extraction already completed
+    if (materialId) {
       api.getMaterial(materialId).then((mat) => {
-        if (mat.extracted_summary) {
-          setSummary(mat.extracted_summary);
+        if (mat && (mat.status === "ready" || mat.extracted_summary)) {
+          if (mat.extracted_summary) setSummary(mat.extracted_summary);
           setJobStatus("ready");
           setProgress(100);
         }
-      });
+      }).catch(() => {});
+    }
+
+    if (!jobId) {
       return;
     }
 
     let intervalId: any = null;
 
     const pollStatus = async () => {
+      setPollCount((prev) => prev + 1);
       try {
         const res = await api.getAnalysisStatus(jobId);
         setJobStatus(res.status);
@@ -63,10 +70,21 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
         }
       } catch (err: any) {
         console.error("Polling error:", err);
+        // Fallback: check material table directly
+        if (materialId) {
+          api.getMaterial(materialId).then((mat) => {
+            if (mat && (mat.status === "ready" || mat.extracted_summary)) {
+              if (mat.extracted_summary) setSummary(mat.extracted_summary);
+              setJobStatus("ready");
+              setProgress(100);
+              clearInterval(intervalId);
+            }
+          }).catch(() => {});
+        }
       }
     };
 
-    intervalId = setInterval(pollStatus, 800);
+    intervalId = setInterval(pollStatus, 1200);
     pollStatus();
 
     return () => clearInterval(intervalId);
@@ -256,14 +274,19 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
             </div>
           )}
 
-          {/* Action on Complete with Pill Button */}
-          {jobStatus === "ready" && (
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
+          {/* Action on Complete or after initial polling with Pill Button */}
+          {(jobStatus === "ready" || pollCount >= 6 || error) && (
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-[11px] text-slate-500 text-center sm:text-left">
+                {jobStatus === "ready"
+                  ? "✓ Concept extraction ready."
+                  : "Document analysis active in background. You can proceed directly to curriculum planning."}
+              </span>
               <button
                 type="button"
                 onClick={handleContinueToPlan}
                 disabled={isGeneratingLesson}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap"
               >
                 {isGeneratingLesson ? (
                   <>

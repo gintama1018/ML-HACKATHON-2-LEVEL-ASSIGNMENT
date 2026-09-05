@@ -3,7 +3,12 @@ import json
 import time
 import logging
 from typing import Dict, Any, Optional
-import anthropic
+try:
+    import anthropic
+    HAVE_ANTHROPIC = True
+except ImportError:
+    anthropic = None
+    HAVE_ANTHROPIC = False
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -25,7 +30,7 @@ class UnifiedLLMService:
         self.gemini_key = settings.GEMINI_API_KEY
         self.provider = settings.LLM_PROVIDER.lower()
 
-        self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_key) if self.anthropic_key else None
+        self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_key) if (HAVE_ANTHROPIC and self.anthropic_key) else None
         
         # Check for valid, non-placeholder Gemini API Key
         has_real_gemini_key = bool(
@@ -48,26 +53,29 @@ class UnifiedLLMService:
         return bool(self.anthropic_client or self.gemini_configured)
 
     def _call_gemini(self, model_name: str, system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
-        """Call Google Gemini API with system instructions and generous token budget"""
-        try:
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                system_instruction=system_prompt,
-                generation_config={"temperature": temperature, "max_output_tokens": 8192}
-            )
-            response = model.generate_content(user_prompt)
-            return response.text
-        except Exception as e:
-            if model_name != self.gemini_fast_model:
-                logger.warning(f"Gemini generation with {model_name} failed: {e}. Trying {self.gemini_fast_model} fallback.")
+        """Call Google Gemini API with system instructions and generous token budget, falling back across valid models"""
+        candidates = []
+        for m in [model_name, self.gemini_fast_model, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+            if m and m not in candidates:
+                candidates.append(m)
+        
+        last_err = None
+        for candidate in candidates:
+            try:
                 model = genai.GenerativeModel(
-                    model_name=self.gemini_fast_model,
+                    model_name=candidate,
                     system_instruction=system_prompt,
                     generation_config={"temperature": temperature, "max_output_tokens": 8192}
                 )
                 response = model.generate_content(user_prompt)
-                return response.text
-            raise
+                if response and response.text:
+                    return response.text
+            except Exception as e:
+                logger.warning(f"Gemini generation with {candidate} failed: {e}")
+                last_err = e
+        if last_err:
+            raise last_err
+        raise RuntimeError("Gemini model generation produced no output.")
 
     def call_reasoning(
         self,

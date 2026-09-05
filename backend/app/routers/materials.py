@@ -10,7 +10,7 @@ from app.schemas import MaterialResponse
 
 router = APIRouter(tags=["Materials"])
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".txt", ".md"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".txt", ".md", ".png", ".jpg", ".jpeg"}
 LEGACY_UNSUPPORTED = {".doc", ".ppt"}
 
 @router.post("/materials/upload", response_model=MaterialResponse)

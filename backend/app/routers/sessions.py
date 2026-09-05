@@ -24,7 +24,13 @@ from app.schemas import (
     AskTeacherResponse,
     LessonSessionResponse,
     EvaluationResponse,
-    QuestionResponse
+    QuestionResponse,
+    FlashcardsResponse,
+    FlashcardItem,
+    StudyNotesResponse,
+    ConceptMapResponse,
+    ConceptMapNode,
+    ConceptMapEdge
 )
 from app.services.rag_service import rag_service
 from app.services.claude_service import claude_service
@@ -745,6 +751,7 @@ def submit_student_answer(
     )
 
 @router.post("/session/{session_id}/ask", response_model=AskTeacherResponse)
+@router.post("/session/{session_id}/ask-doubt", response_model=AskTeacherResponse)
 def ask_teacher_doubt(
     session_id: str,
     payload: AskTeacherRequest,
@@ -890,3 +897,126 @@ def explain_again(
         "new_explanation": new_explanation,
         "retry_count": current_segment.retry_count
     }
+
+
+# --- Advanced Section 18 Features (Flashcards, Study Notes, Concept Map) ---
+
+@router.get("/session/{session_id}/flashcards", response_model=FlashcardsResponse)
+def get_session_flashcards(session_id: str, db: Session = Depends(get_db)):
+    """Generate high-yield active recall flashcards for the session (Section 18)."""
+    session = db.query(LessonSession).filter(LessonSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    topic = session.lesson.topic if session.lesson and session.lesson.topic else "Curriculum Concept"
+    segments = db.query(SessionSegment).filter(SessionSegment.session_id == session.id).order_by(SessionSegment.segment_order.asc()).all()
+    questions = db.query(Question).filter(Question.session_id == session.id).all()
+    
+    flashcards: List[FlashcardItem] = []
+    
+    try:
+        if claude_service.is_configured() and segments:
+            summary_points = "\n".join([f"- {s.concept}: {s.explanation_text[:200]}" for s in segments])
+            sys_prompt = "You are an expert educator creating active-recall study flashcards. Return ONLY a JSON object with a key 'flashcards' containing a list of {id, concept, front, back, mnemonic}."
+            user_prompt = f"Create 4-6 high-yield study flashcards for topic '{topic}' in language '{session.language or 'English'}' based on these concepts:\n{summary_points}"
+            data = claude_service.call_json(sys_prompt, user_prompt, use_reasoning=False)
+            cards = data.get("flashcards", [])
+            for idx, c in enumerate(cards):
+                flashcards.append(FlashcardItem(
+                    id=f"fc_{idx+1}",
+                    concept=c.get("concept", topic),
+                    front=c.get("front", "Question"),
+                    back=c.get("back", "Answer"),
+                    mnemonic=c.get("mnemonic")
+                ))
+    except Exception as e:
+        logger.warning(f"LLM flashcard generation failed: {e}")
+    
+    if not flashcards:
+        for idx, seg in enumerate(segments):
+            related_q = next((q for q in questions if q.segment_id == seg.id), None)
+            front_text = related_q.prompt if related_q else f"What is the core principle of {seg.concept}?"
+            back_text = seg.explanation_text[:250] if seg.explanation_text else f"The foundational law and intuition of {seg.concept}."
+            flashcards.append(FlashcardItem(
+                id=f"fc_{idx+1}",
+                concept=seg.concept,
+                front=front_text,
+                back=back_text,
+                mnemonic=f"Visualize {seg.concept} through its {seg.visual_type} representation."
+            ))
+            
+    return FlashcardsResponse(session_id=session_id, topic=topic, flashcards=flashcards)
+
+
+@router.get("/session/{session_id}/study-notes", response_model=StudyNotesResponse)
+def get_session_study_notes(session_id: str, db: Session = Depends(get_db)):
+    """Generate structured revision study notes and cheat sheet (Section 18)."""
+    session = db.query(LessonSession).filter(LessonSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    topic = session.lesson.topic if session.lesson and session.lesson.topic else "Educational Subject"
+    segments = db.query(SessionSegment).filter(SessionSegment.session_id == session.id).order_by(SessionSegment.segment_order.asc()).all()
+    lang = session.language or "English"
+    
+    takeaways = []
+    defs_or_formulas = []
+    
+    for seg in segments:
+        takeaways.append(f"Mastery of **{seg.concept}**: Key analytical takeaways, governing rules, and boundary conditions.")
+        defs_or_formulas.append({
+            "term": seg.concept,
+            "definition": (seg.explanation_text[:180] + "...") if seg.explanation_text else "Core foundational concept."
+        })
+        
+    summary_md = f"# Comprehensive Study Notes: {topic}\n\n"
+    summary_md += f"**Language**: {lang} | **Target Time**: {session.lesson.profile.available_time if session.lesson and session.lesson.profile else '20 min'}\n\n"
+    summary_md += "## Executive Conceptual Summary\n"
+    for seg in segments:
+        summary_md += f"### {seg.segment_order}. {seg.concept}\n"
+        summary_md += f"{seg.explanation_text}\n\n"
+        
+    recommended = [
+        f"Review {topic} flashcards daily using active spaced recall.",
+        "Solve 3 practice application problems on boundary conditions.",
+        "Proceed to the recommended next topic to build on these fundamentals."
+    ]
+    
+    return StudyNotesResponse(
+        session_id=session_id,
+        topic=topic,
+        language=lang,
+        summary_markdown=summary_md,
+        key_takeaways=takeaways,
+        formulas_or_definitions=defs_or_formulas,
+        recommended_actions=recommended
+    )
+
+
+@router.get("/session/{session_id}/concept-map", response_model=ConceptMapResponse)
+def get_session_concept_map(session_id: str, db: Session = Depends(get_db)):
+    """Generate hierarchical concept graph of prerequisites, core concepts, and applications (Section 18)."""
+    session = db.query(LessonSession).filter(LessonSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    topic = session.lesson.topic if session.lesson and session.lesson.topic else "Curriculum Domain"
+    segments = db.query(SessionSegment).filter(SessionSegment.session_id == session.id).order_by(SessionSegment.segment_order.asc()).all()
+    
+    nodes: List[ConceptMapNode] = []
+    edges: List[ConceptMapEdge] = []
+    
+    # Root domain node
+    nodes.append(ConceptMapNode(id="root", label=topic, type="core", status="mastered"))
+    
+    prev_id = "root"
+    for idx, seg in enumerate(segments):
+        node_id = f"node_{idx+1}"
+        node_type = "prerequisite" if idx == 0 else ("application" if idx == len(segments)-1 else "core")
+        status = "mastered" if getattr(seg, "is_mastered", False) else "reviewing"
+        nodes.append(ConceptMapNode(id=node_id, label=seg.concept, type=node_type, status=status))
+        edges.append(ConceptMapEdge(source=prev_id, target=node_id, label="governs" if idx == 0 else "leads to"))
+        prev_id = node_id
+        
+    return ConceptMapResponse(session_id=session_id, topic=topic, nodes=nodes, edges=edges)
+

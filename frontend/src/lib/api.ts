@@ -1,4 +1,7 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8000";
 
 export function getVideoUrl(path: string | undefined | null): string {
   if (!path) return "";
@@ -329,7 +332,10 @@ export const api = {
   },
 
   async getContentAnalysisStatus(jobId: string) {
-    const res = await fetch(`${API_BASE}/content/analysis/${jobId}`);
+    let res = await fetch(`${API_BASE}/content/analysis/${jobId}`);
+    if (!res.ok) {
+      res = await fetch(`${API_BASE}/content/analyze/${jobId}/status`);
+    }
     if (!res.ok) throw new Error("Failed to get analysis status");
     return res.json();
   },
@@ -550,4 +556,68 @@ export const api = {
       };
     }
   },
+
+  // Section 18 Advanced Features
+  async getFlashcards(sessionId: string): Promise<FlashcardsResponse> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/flashcards`);
+    if (!res.ok) throw new Error("Failed to get flashcards");
+    return res.json();
+  },
+
+  async getStudyNotes(sessionId: string): Promise<StudyNotesResponse> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/study-notes`);
+    if (!res.ok) throw new Error("Failed to get study notes");
+    return res.json();
+  },
+
+  async getConceptMap(sessionId: string): Promise<ConceptMapResponse> {
+    const res = await fetch(`${API_BASE}/session/${sessionId}/concept-map`);
+    if (!res.ok) throw new Error("Failed to get concept map");
+    return res.json();
+  },
 };
+
+export interface FlashcardItem {
+  id: string;
+  concept: string;
+  front: string;
+  back: string;
+  mnemonic?: string;
+}
+
+export interface FlashcardsResponse {
+  session_id: string;
+  topic: string;
+  flashcards: FlashcardItem[];
+}
+
+export interface StudyNotesResponse {
+  session_id: string;
+  topic: string;
+  language: string;
+  summary_markdown: string;
+  key_takeaways: string[];
+  formulas_or_definitions: Array<{ term: string; definition: string }>;
+  recommended_actions: string[];
+}
+
+export interface ConceptMapNode {
+  id: string;
+  label: string;
+  type: "prerequisite" | "core" | "application";
+  status: "mastered" | "reviewing" | "upcoming";
+}
+
+export interface ConceptMapEdge {
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface ConceptMapResponse {
+  session_id: string;
+  topic: string;
+  nodes: ConceptMapNode[];
+  edges: ConceptMapEdge[];
+}
+

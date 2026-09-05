@@ -77,13 +77,31 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
     setError(null);
     try {
       const student = await api.getDefaultStudent();
-      const profileId = sessionStorage.getItem("current_profile_id");
+      const level = (sessionStorage.getItem("draft_level") || "Beginner") as any;
+      const available_time = (sessionStorage.getItem("draft_time") || "20 min") as any;
+      const language = sessionStorage.getItem("draft_language") || "English";
+      const objective = sessionStorage.getItem("draft_objective") || "Concept Mastery";
+      const depth = sessionStorage.getItem("draft_depth") || "Standard";
+      const style = sessionStorage.getItem("draft_style") || "Simple & example-heavy";
+      const existingKnowledge = sessionStorage.getItem("draft_existing_knowledge") || "";
+      const specialInstruction = sessionStorage.getItem("draft_special_instruction") || "";
+
+      const combinedContext = [
+        existingKnowledge.trim(),
+        specialInstruction.trim() ? `Instruction: ${specialInstruction.trim()}` : ""
+      ].filter(Boolean).join(". ");
 
       const lesson = await api.generateLesson({
         student_id: student.id,
         source_type: "material",
         material_id: materialId,
-        profile_id: profileId || "default",
+        level,
+        available_time,
+        language,
+        objective,
+        depth,
+        style,
+        existing_knowledge: combinedContext || undefined
       });
 
       router.push(`/lessons/${lesson.id}/plan`);
@@ -136,7 +154,7 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
         )}
 
         {/* Multi-Stage Breakdown */}
-        <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <h2 className="font-heading font-bold text-sm text-[#0f172a]">
             Ingestion Pipeline Stages
           </h2>
@@ -177,6 +195,66 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
               );
             })}
           </div>
+
+          {/* Extracted Concepts & Structure Display (REQ-18, RAG Grounding Proof) */}
+          {summary && (
+            <div className="p-4.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <h3 className="font-heading font-bold text-xs text-[#0f172a] uppercase tracking-wider">
+                  Grounding Knowledge Extracted from Document
+                </h3>
+              </div>
+
+              {summary.summary && (
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {summary.summary}
+                </p>
+              )}
+
+              {summary.key_concepts && summary.key_concepts.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Core Concepts Extracted:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {summary.key_concepts.map((concept: any, cIdx: number) => {
+                      const text = typeof concept === "string" ? concept : concept?.name || concept?.title || String(concept);
+                      return (
+                        <span
+                          key={cIdx}
+                          className="px-2.5 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-800 shadow-2xs"
+                        >
+                          {text}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {summary.sections && summary.sections.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Detected Sections & Chapters:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {summary.sections.map((sec: any, sIdx: number) => {
+                      const label = typeof sec === "string" ? sec : sec?.name || sec?.title || `Section ${sIdx + 1}`;
+                      return (
+                        <span
+                          key={sIdx}
+                          className="px-2.5 py-0.5 bg-slate-200/70 rounded-md text-[11px] font-mono text-slate-700"
+                        >
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Action on Complete with Pill Button */}
           {jobStatus === "ready" && (

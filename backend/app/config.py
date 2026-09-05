@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
+# Disable chromadb telemetry
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 class Settings(BaseSettings):
     # App Settings
     APP_NAME: str = "AI Teacher — Bharat Academix"

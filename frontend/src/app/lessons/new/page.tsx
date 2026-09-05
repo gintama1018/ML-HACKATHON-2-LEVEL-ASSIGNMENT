@@ -186,7 +186,7 @@ export default function CreateLessonPage() {
                   <input
                     id="file-upload"
                     type="file"
-                    accept=".pdf,.docx,.pptx,.txt"
+                    accept=".pdf,.docx,.pptx,.txt,.png,.jpg,.jpeg"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -198,7 +198,7 @@ export default function CreateLessonPage() {
                       Click to upload or drag & drop notes
                     </p>
                     <p className="text-xs text-slate-500">
-                      Supports PDF, DOCX, PPTX, TXT up to 25MB
+                      Supports PDF, DOCX, PPTX, TXT, Textbook Images (PNG, JPG) up to 25MB
                     </p>
                   </div>
                 </div>

@@ -283,17 +283,25 @@ Fulfills **REQ-06, REQ-27, REQ-28** by providing broad multilingual support acro
 
 ## Subject-Aware Visuals & Explainability
 
-The interactive Whiteboard (`Whiteboard.tsx`) and Video Synthesis engine dynamically render subject-specific visual modules with **Decision Explainability Badges** (REQ-32):
+The interactive Whiteboard (`Whiteboard.tsx`) and Video Synthesis engine dynamically render subject-specific visual modules with **Decision Explainability Badges** (REQ-32). 
 
-| Subject Domain | Visual Renderer | Decision Rationale | Status |
+### 5-Perspective Multi-Diagram Architecture:
+Rather than a single static illustration, every learning concept empowers the student to toggle between **5 synchronized analytical perspectives**:
+1. **Architecture & Topology**: Multi-node structural layout displaying system modules, boundaries, inter-connect edges (`source ➔ target`), and an interactive component inspection drawer.
+2. **Pipeline Execution Flow**: Interactive sequential stepper tracking end-to-end data transmission (e.g. Navigation ➔ Deterministic Security Gate ➔ Local AI Memory ➔ 60 FPS Render Engine ➔ Encrypted Storage) with manual step and auto-play controls.
+3. **Executable Code Sandbox**: Domain-tailored implementation snippet with live **Run Simulation** execution button printing real-time terminal output.
+4. **Performance Analytics & Telemetry**: SVG coordinate curves tracking latency budgets (16.6ms / 60 FPS), on-device memory footprints (0 cloud leaks), or gradient loss convergence.
+5. **Foundational Principles & Theory**: Formal governing equations, mathematical axioms, and architectural security invariants.
+
+| Subject Domain | Visual Renderer | Multi-Diagram Perspectives | Status |
 | :--- | :--- | :--- | :--- |
-| **Physics / Electronics** | Closed-loop circuit schematic with animated current flow | Visualizes current flow balanced against resistance | [Working] |
-| **Mathematics & Calculus** | Parameter relationship coordinate curves ($I = V/R$) | Demonstrates linear proportionality & slope | [Working] |
-| **Engineering / Formulas** | LaTeX-style step-by-step derivations | Steps through formal axiomatic proofs | [Working] |
-| **Computer Science** | Embedded Python 3.11 interactive code runner | Verifies computational execution & return values | [Working] |
-| **Biology & Life Sciences** | Labeled cellular & organelle structure diagrams | Highlights compartmentalized functional units | [Working] |
-| **Chemistry & Kinetics** | Reaction pathway & activation energy ($E_a$) curves | Illustrates thermodynamic transition barriers | [Working] |
-| **History & Humanities** | Chronological timeline milestones | Sequences historical evolution stages | [Working] |
+| **Software & Systems (Browser/OS/Networks)** | Modular Subsystem Node Graph & Sandboxed Pipeline | Architecture, Pipeline Flow, Runnable Code Sandbox, Frame Budget Curve, Security Axioms | [Working] |
+| **Physics & Electronics** | Closed-loop circuit schematic with animated current flow | Schematic Layout, Potential Divider Flow, Ohm's Law Simulation, V-I Curves | [Working] |
+| **Computer Science & Algorithms** | Interactive Algorithm & Code Execution Runner | Syntax Highlighting, Execution Stepper, Time Complexity Plot, Algorithmic Invariants | [Working] |
+| **Mathematics & Calculus** | Parameter relationship coordinate curves & formal derivations | Function Trajectory, Proof Steps, Sensitivity Analytics, Theorem Proof | [Working] |
+| **Biology & Life Sciences** | Labeled cellular & organelle structure diagrams | Compartment Pins, Metabolic Cycle Flow, Organelle Comparison, Biochemical Laws | [Working] |
+| **Chemistry & Kinetics** | Reaction pathway & activation energy ($E_a$) profiles | Transition State Graph, Reaction Stepper, Stoichiometric Code, Thermodynamic Equilibrium | [Working] |
+| **History & Humanities** | Chronological timeline milestones | Milestone Cards, Cause-and-Effect Flow, Impact Analytics, Primary Source Synthesis | [Working] |
 
 ---
 
@@ -382,17 +390,21 @@ Create `backend/.env` (optional for local fallback evaluation, supported for liv
 ### Running Test Suite
 
 ```bash
-# Run the complete test suite (18 tests passing 100%):
+# Run the complete test suite (100% Green):
 cd backend
 venv\Scripts\pytest -v
+
+# Run Master Technical Assessment Doc Compliance Audit Test:
+venv\Scripts\pytest tests/test_full_doc_compliance_audit.py -v
+
+# Run Section 18 Advanced Features Test (Flashcards, Study Notes, Concept Map):
+venv\Scripts\pytest tests/test_section18_advanced_features.py -v
 
 # Run specific domain test suites:
 venv\Scripts\pytest tests/test_judge_attack_hardening.py -v
 venv\Scripts\pytest tests/test_m2b_adaptive_loop.py -v
 venv\Scripts\pytest tests/test_m1_plumbing.py -v
 venv\Scripts\pytest tests/test_m3_assessment_report.py -v
-
-# Run Golden Path End-to-End integration test:
 venv\Scripts\pytest tests/test_golden_path_e2e.py -v
 ```
 
@@ -431,42 +443,66 @@ venv\Scripts\pytest tests/test_golden_path_e2e.py -v
 
 ## Deployment
 
-Bharat Academix is structured for cloud deployments across serverless, PaaS, and containerized hosts:
+Bharat Academix is production-ready for automated 1-click cloud deployments across **Render (Backend)** and **Vercel (Frontend)**:
 
-### 1. Frontend Deployment (Vercel)
+### 1. Backend Deployment on Render (FastAPI + ChromaDB + AI Services)
+
+Render natively runs Python Web Services or Docker containers with zero setup required.
+
+- **Option A: 1-Click Render Blueprint**
+  The repository includes a ready-to-use [`render.yaml`](./render.yaml) blueprint. In Render Dashboard, click **New +** ➔ **Blueprint** and connect this repository.
+
+- **Option B: Manual Web Service Setup**
+  1. Go to [Render Dashboard](https://dashboard.render.com/) ➔ **New +** ➔ **Web Service**.
+  2. Connect your GitHub repository: `gintama1018/ML-HACKATHON-2-LEVEL-ASSIGNMENT`.
+  3. Configure the service settings:
+     - **Name**: `bharat-academix-backend`
+     - **Root Directory**: `backend` *(mandatory)*
+     - **Runtime**: `Python 3` (or `Docker` using `backend/Dockerfile`)
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+     - **Instance Type**: `Free`
+  4. Add Environment Variables:
+     | Key | Value | Notes |
+     | :--- | :--- | :--- |
+     | `GEMINI_API_KEY` | `AIzaSy...` | Your Google Gemini API Key |
+     | `LLM_PROVIDER` | `gemini` | Primary AI provider |
+     | `GEMINI_REASONING_MODEL`| `gemini-2.5-flash` | Latest high-speed reasoning model |
+     | `GEMINI_FAST_MODEL` | `gemini-2.5-flash` | Fast inference model |
+     | `CORS_ORIGINS` | `*` | Or comma-separated list of your Vercel domains |
+  5. Click **Deploy Web Service** and copy your live backend URL (e.g., `https://bharat-academix-backend.onrender.com`).
+  6. **Health Check Verification**: Open `https://<your-backend>.onrender.com/health` in your browser. Expected: `{"status": "healthy"}`.
+
+---
+
+### 2. Frontend Deployment on Vercel (Next.js 16 App Router)
+
 - **Platform**: [Vercel](https://vercel.com/)
-- **Framework Preset**: Next.js 16 (App Router)
-- **Root Directory**: `frontend`
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-- **Environment Variables**:
-  - `NEXT_PUBLIC_API_BASE`: `https://your-backend-api.onrender.com` (point to live backend)
+- **Setup Steps**:
+  1. Go to [Vercel Dashboard](https://vercel.com/dashboard) ➔ **Add New...** ➔ **Project**.
+  2. Import your GitHub repository: `gintama1018/ML-HACKATHON-2-LEVEL-ASSIGNMENT`.
+  3. In **Configure Project**:
+     - **Framework Preset**: `Next.js` (auto-detected)
+     - **Root Directory**: Click **Edit** and select `frontend` *(mandatory)*
+     - **Build Command**: `npm run build` (auto-configured)
+     - **Output Directory**: `.next`
+  4. Add Environment Variable:
+     | Key | Value | Notes |
+     | :--- | :--- | :--- |
+     | `NEXT_PUBLIC_API_BASE` | `https://<your-render-app>.onrender.com` | Live Render backend URL (no trailing slash) |
+  5. Click **Deploy**. Your frontend will be live in 60-90 seconds at `https://<your-project>.vercel.app`.
 
-### 2. Backend Deployment (Render / Railway / Fly.io)
-- **Platform**: [Render](https://render.com/) or [Railway](https://railway.app/)
-- **Runtime**: Python 3.11+
-- **Root Directory**: `backend`
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **System Packages**: Ensure `ffmpeg` is installed for video synthesis muxing.
-- **Environment Variables**:
-  - `GEMINI_API_KEY`: Your Google Gemini API Key
-  - `LLM_PROVIDER`: `gemini`
-  - `GEMINI_REASONING_MODEL`: `gemini-1.5-pro`
-  - `GEMINI_FAST_MODEL`: `gemini-1.5-flash`
+---
 
-### 3. Docker Containerization
-```dockerfile
-# Dockerfile for Backend Service
-FROM python:3.11-slim
-RUN apt-get update && apt-get install -y ffmpeg libespeak1 && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+### 3. Production Dockerfile & Containerization
+For enterprise or self-hosted deployments (AWS ECS, Google Cloud Run, Railway, DigitalOcean):
+```bash
+# Build and run backend container locally or in cloud:
+cd backend
+docker build -t bharat-academix-backend .
+docker run -p 8000:8000 --env-file .env bharat-academix-backend
 ```
+The included [`backend/Dockerfile`](./backend/Dockerfile) installs Ubuntu Linux, FFmpeg, and Python 3.11 with optimized memory caching.
 
 ---
 

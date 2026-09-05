@@ -324,3 +324,43 @@ class LearningPathGenerateRequest(BaseModel):
 class LearningPathModuleUpdateRequest(BaseModel):
     is_completed: Optional[bool] = None
     score: Optional[float] = None
+
+# --- Advanced Section 18 Features (Flashcards, Notes, Concept Maps) ---
+class FlashcardItem(BaseModel):
+    id: str
+    concept: str
+    front: str
+    back: str
+    mnemonic: Optional[str] = None
+
+class FlashcardsResponse(BaseModel):
+    session_id: str
+    topic: str
+    flashcards: List[FlashcardItem] = []
+
+class StudyNotesResponse(BaseModel):
+    session_id: str
+    topic: str
+    language: str
+    summary_markdown: str
+    key_takeaways: List[str] = []
+    formulas_or_definitions: List[Dict[str, str]] = []
+    recommended_actions: List[str] = []
+
+class ConceptMapNode(BaseModel):
+    id: str
+    label: str
+    type: str  # prerequisite, core, application
+    status: str  # mastered, reviewing, upcoming
+
+class ConceptMapEdge(BaseModel):
+    source: str
+    target: str
+    label: Optional[str] = None
+
+class ConceptMapResponse(BaseModel):
+    session_id: str
+    topic: str
+    nodes: List[ConceptMapNode] = []
+    edges: List[ConceptMapEdge] = []
+

@@ -1,12 +1,16 @@
 import os
 import re
 import math
+import shutil
 import tempfile
 import subprocess
 import logging
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import imageio_ffmpeg
+try:
+    import imageio_ffmpeg
+except ImportError:
+    imageio_ffmpeg = None
 from gtts import gTTS
 
 logger = logging.getLogger(__name__)
@@ -30,6 +34,22 @@ class VideoGeneratorService:
             return ImageFont.load_default()
         except Exception:
             return ImageFont.load_default()
+
+    def _get_ffmpeg_exe(self) -> str:
+        if imageio_ffmpeg is not None:
+            try:
+                exe = imageio_ffmpeg.get_ffmpeg_exe()
+                if exe and os.path.exists(exe):
+                    return exe
+            except Exception:
+                pass
+        which_exe = shutil.which("ffmpeg")
+        if which_exe:
+            return which_exe
+        for candidate in ["ffmpeg.exe", r"C:\ffmpeg\bin\ffmpeg.exe", r"C:\Program Files\ffmpeg\bin\ffmpeg.exe"]:
+            if os.path.exists(candidate):
+                return candidate
+        return "ffmpeg"
 
     def generate_audio(self, text: str, language: str, output_path: str) -> float:
         """
@@ -94,7 +114,7 @@ class VideoGeneratorService:
                     audio_generated = True
             elif len(chunks) > 1:
                 chunk_files = []
-                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+                ffmpeg_exe = self._get_ffmpeg_exe()
                 for i, c in enumerate(chunks):
                     temp_chunk_mp3 = output_path.replace(".mp3", f"_part_{i}.mp3")
                     tts = gTTS(text=c, lang=lang_code, tld=tld, slow=False, timeout=2.5)
@@ -140,7 +160,7 @@ class VideoGeneratorService:
                 engine.save_to_file(clean_text, temp_wav)
                 engine.runAndWait()
                 if os.path.exists(temp_wav) and os.path.getsize(temp_wav) > 1000:
-                    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+                    ffmpeg_exe = self._get_ffmpeg_exe()
                     subprocess.run([
                         ffmpeg_exe, "-y", "-i", temp_wav,
                         "-c:a", "libmp3lame", "-b:a", "128k", output_path
@@ -160,7 +180,7 @@ class VideoGeneratorService:
 
         # Accurately probe duration using FFmpeg
         try:
-            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            ffmpeg_exe = self._get_ffmpeg_exe()
             res = subprocess.run([ffmpeg_exe, "-i", output_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
             duration = estimated_duration
             for line in res.stderr.splitlines():
@@ -636,7 +656,7 @@ class VideoGeneratorService:
                 esc_path = v_path.replace("\\", "/")
                 f.write(f"file '{esc_path}'\n")
 
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        ffmpeg_exe = self._get_ffmpeg_exe()
         subprocess.run([
             ffmpeg_exe, "-y", "-f", "concat", "-safe", "0",
             "-i", concat_txt, "-c", "copy", output_mp4

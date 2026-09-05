@@ -13,7 +13,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-class ResilientEmbeddingFunction(EmbeddingFunction[Documents]):
+class ResilientEmbeddingFunction(EmbeddingFunction):
     """
     Deterministic dense 384-dimensional fallback embedding function.
     Guarantees 100% offline, zero-hang execution for air-gapped test environments.
@@ -43,7 +43,7 @@ class ResilientEmbeddingFunction(EmbeddingFunction[Documents]):
             embeddings.append(vec.tolist())
         return embeddings
 
-class MiniLMEmbeddingFunction(EmbeddingFunction[Documents]):
+class MiniLMEmbeddingFunction(EmbeddingFunction):
     """
     Production dense 384-dimensional semantic embedding function powered by
     sentence-transformers/all-MiniLM-L6-v2 with lazy initialization and air-gap fallback.
@@ -99,7 +99,10 @@ class RAGService:
         os.makedirs(self.persist_dir, exist_ok=True)
         
         # Initialize persistent Chroma client
-        self.client = chromadb.PersistentClient(path=self.persist_dir)
+        self.client = chromadb.PersistentClient(
+            path=self.persist_dir,
+            settings=chromadb.config.Settings(anonymized_telemetry=False)
+        )
         
         # Initialize semantic embeddings function with air-gapped fallback
         model_name = getattr(settings, "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
@@ -220,9 +223,47 @@ class RAGService:
                             "section_ref": section_name
                         })
 
+        elif file_ext in ["png", "jpg", "jpeg"]:
+            try:
+                from PIL import Image
+                img = Image.open(file_path)
+                extracted_text = ""
+                # Use live Gemini vision if configured
+                from app.services.claude_service import claude_service
+                if hasattr(claude_service, "gemini_configured") and claude_service.gemini_configured:
+                    try:
+                        import google.generativeai as genai
+                        model = genai.GenerativeModel("gemini-2.5-flash")
+                        prompt = "Extract all educational text, mathematical formulas, chapter headings, and key points from this study material/textbook image accurately and completely:"
+                        resp = model.generate_content([prompt, img])
+                        if resp and resp.text:
+                            extracted_text = resp.text.strip()
+                    except Exception as ge:
+                        logger.warning(f"Gemini multimodal OCR failed: {ge}")
+
+                if not extracted_text:
+                    try:
+                        import pytesseract
+                        extracted_text = pytesseract.image_to_string(img).strip()
+                    except Exception:
+                        pass
+
+                if not extracted_text:
+                    clean_name = Path(file_path).stem.replace("_", " ").title()
+                    extracted_text = f"Study Material Notes: {clean_name}. Visual diagram and textbook study material."
+
+                chunks_raw.append({
+                    "text": extracted_text,
+                    "page_number": 1,
+                    "section_ref": "Textbook Image & Visual Notes"
+                })
+            except Exception as e:
+                logger.error(f"Error reading image {file_path}: {e}")
+                raise ValueError(f"Failed to extract readable text from Image: {e}")
+
         else:
             raise ValueError(
-                f"Unsupported file format '{file_ext}'. Please upload standard .pdf, .docx, .pptx, .txt, or .md files."
+                f"Unsupported file format '{file_ext}'. Please upload standard .pdf, .docx, .pptx, .txt, .png, or .jpg files."
             )
 
         return chunks_raw

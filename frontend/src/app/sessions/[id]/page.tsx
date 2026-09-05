@@ -504,11 +504,12 @@ export default function TeachingSessionPage({ params }: SessionPageProps) {
             {/* RIGHT COLUMN (7 cols): Primary Whiteboard & Adaptive Question Card */}
             <div className="lg:col-span-7 flex flex-col space-y-4">
               {/* Whiteboard Canvas (Primary Focus) */}
-              <div className="h-64 sm:h-72 w-full bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="min-h-[420px] h-[450px] sm:h-[480px] w-full bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
                 <Whiteboard
                   concept={currentSegment?.concept || "Core Concept"}
                   visualType={currentSegment?.visual_type || "chart"}
                   visualSpec={currentSegment?.visual_spec || {}}
+                  explanation={currentSegment?.explanation_text || ""}
                 />
               </div>
 

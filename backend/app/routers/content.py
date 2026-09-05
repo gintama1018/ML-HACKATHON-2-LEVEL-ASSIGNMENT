@@ -129,6 +129,7 @@ def process_content_job_sync(job_id: str, material_id: str = None, topic: str = 
         db.close()
 
 @router.post("/content/analyze")
+@router.post("/content/analysis")
 async def start_content_analysis(
     payload: ContentAnalyzeRequest,
     background_tasks: BackgroundTasks,
@@ -154,6 +155,9 @@ async def start_content_analysis(
     return {"job_id": job_id, "status": "extracting", "stage": "Started"}
 
 @router.get("/content/analyze/{job_id}/status", response_model=ContentAnalyzeStatusResponse)
+@router.get("/content/analysis/{job_id}", response_model=ContentAnalyzeStatusResponse)
+@router.get("/content/analysis/{job_id}/status", response_model=ContentAnalyzeStatusResponse)
+@router.get("/content/analyze/{job_id}", response_model=ContentAnalyzeStatusResponse)
 def get_analysis_status(job_id: str):
     if job_id not in ANALYSIS_JOBS:
         raise HTTPException(status_code=404, detail="Job not found")

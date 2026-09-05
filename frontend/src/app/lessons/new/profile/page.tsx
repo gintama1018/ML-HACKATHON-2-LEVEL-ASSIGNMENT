@@ -34,6 +34,8 @@ export default function LearnerProfilePage() {
   const [materialId, setMaterialId] = useState<string | null>(null);
   const [materialName, setMaterialName] = useState<string | null>(null);
 
+  const [specialInstruction, setSpecialInstruction] = useState("");
+
   useEffect(() => {
     setLanguage(globalLang);
   }, [globalLang]);
@@ -58,13 +60,37 @@ export default function LearnerProfilePage() {
     try {
       const student = await api.getDefaultStudent();
 
+      // Persist profile draft
+      sessionStorage.setItem("draft_level", level);
+      sessionStorage.setItem("draft_time", availableTime);
+      sessionStorage.setItem("draft_objective", objective);
+      sessionStorage.setItem("draft_depth", depth);
+      sessionStorage.setItem("draft_language", language);
+      sessionStorage.setItem("draft_style", teachingStyle);
+      sessionStorage.setItem("draft_existing_knowledge", existingKnowledge.trim());
+      sessionStorage.setItem("draft_special_instruction", specialInstruction.trim());
+
+      if (sourceType === "material" && materialId) {
+        // Trigger real content analysis pipeline and navigate to processing view
+        const analysisJob = await api.analyzeContent({ material_id: materialId });
+        sessionStorage.setItem("current_analysis_job_id", analysisJob.job_id);
+        router.push(`/lessons/${materialId}/processing`);
+        return;
+      }
+
+      // Topic-based path: generate directly
+      const combinedContext = [
+        existingKnowledge.trim(),
+        specialInstruction.trim() ? `Instruction: ${specialInstruction.trim()}` : ""
+      ].filter(Boolean).join(". ");
+
       const lesson = await api.generateLesson({
         student_id: student.id,
         source_type: sourceType,
         material_id: materialId || undefined,
         topic: topic || undefined,
         level,
-        existing_knowledge: existingKnowledge.trim() || undefined,
+        existing_knowledge: combinedContext || undefined,
         objective,
         language,
         style: teachingStyle,
@@ -177,6 +203,20 @@ export default function LearnerProfilePage() {
             </select>
           </div>
 
+          {/* Specific Focus / Goal Instruction */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              Specific Learning Goals or Chapter Focus (Optional)
+            </label>
+            <input
+              type="text"
+              value={specialInstruction}
+              onChange={(e) => setSpecialInstruction(e.target.value)}
+              placeholder="e.g. Focus on Chapter 4 with simple real-world examples and test me at the end"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
+            />
+          </div>
+
           {/* Advanced Customization Toggle */}
           <div className="pt-2 border-t border-slate-100">
             <button
@@ -201,6 +241,23 @@ export default function LearnerProfilePage() {
                     placeholder="e.g. Basic algebra and basic circuit terminology"
                     className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
                   />
+                </div>
+
+                {/* Teacher Personality & Character (Section 18) */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    AI Teacher Personality & Character
+                  </label>
+                  <select
+                    value={teachingStyle}
+                    onChange={(e) => setTeachingStyle(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-[#0f172a] focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <option value="Intuitive Mentor (Analogy & Story-heavy)">Intuitive Mentor (Analogy & Story-heavy)</option>
+                    <option value="Socratic Scholar (Inquiry & First-Principles)">Socratic Scholar (Inquiry & First-Principles)</option>
+                    <option value="Strict Exam Coach (High-Yield Facts & Common Traps)">Strict Exam Coach (High-Yield Facts & Common Traps)</option>
+                    <option value="Friendly Peer (Casual & Conversational)">Friendly Peer (Casual & Conversational)</option>
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

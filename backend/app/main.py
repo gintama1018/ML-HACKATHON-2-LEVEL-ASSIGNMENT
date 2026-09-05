@@ -92,6 +92,16 @@ app.include_router(report.router)
 app.include_router(video.router)
 app.include_router(learning_paths.router)
 
+@app.get("/")
+def root():
+    return {
+        "app": settings.APP_NAME,
+        "status": "online",
+        "docs": "/docs",
+        "health": "/health",
+        "version": "1.0.0"
+    }
+
 @app.get("/health")
 def health_check():
     return {

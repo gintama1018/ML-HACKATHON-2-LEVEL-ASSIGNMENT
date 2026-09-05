@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useLanguage, SupportedLanguage } from "@/context/LanguageContext";
 import { api } from "@/lib/api";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { supabase } from "@/lib/supabase";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -31,6 +33,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const { language, setLanguage, t } = useLanguage();
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [systemStatus, setSystemStatus] = useState<{ is_live_ai: boolean; active_provider: string } | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<any>(null);
 
   const isClassroom = pathname.startsWith("/sessions/");
 
@@ -43,6 +47,19 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
     // Fetch system AI live mode status
     api.getSystemStatus().then((res) => setSystemStatus(res)).catch(() => {});
+
+    // Listen to Supabase auth state
+    if (supabase) {
+      supabase.auth.getUser().then(({ data: { user } }) => setAuthUser(user));
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setAuthUser(session?.user || null);
+      });
+      return () => {
+        subscription.unsubscribe();
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
 
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -155,20 +172,45 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             )}
           </div>
 
+          {/* User Auth / Google Sign-In */}
+          <button
+            type="button"
+            onClick={() => setIsAuthModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition interactive-tactile cursor-pointer focus-visible:ring-2 focus-visible:ring-slate-900"
+            title={authUser ? `Signed in as ${authUser.email}` : "Sign In with Google / Supabase"}
+          >
+            {authUser?.user_metadata?.avatar_url ? (
+              <img
+                src={authUser.user_metadata.avatar_url}
+                alt="Avatar"
+                className="w-5 h-5 rounded-full border border-emerald-500"
+              />
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[10px] font-bold">
+                <User className="w-3 h-3" />
+              </div>
+            )}
+            <span className="text-xs font-semibold text-[#0f172a] max-w-[100px] truncate hidden sm:inline-block">
+              {authUser ? (authUser.user_metadata?.full_name?.split(" ")[0] || "Account") : "Sign In"}
+            </span>
+          </button>
+
           {/* User Profile Link */}
           <Link
             href="/profile"
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition interactive-tactile focus-visible:ring-2 focus-visible:ring-slate-900"
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium transition"
+            title="View Student Profile & Learning Analytics"
           >
-            <div className="w-5 h-5 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[11px] font-bold">
-              <User className="w-3 h-3" />
-            </div>
-            <span className="text-xs font-semibold text-[#0f172a] hidden sm:inline-block">
-              {t("user.student")}
-            </span>
+            <span>Profile</span>
           </Link>
         </div>
       </header>
+
+      {/* Supabase Google Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
 
       {/* Main Page Content */}
       <main className="flex-1 px-4 sm:px-6 py-6 max-w-6xl w-full mx-auto pb-24">

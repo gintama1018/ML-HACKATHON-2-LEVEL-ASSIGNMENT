@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Storage Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
-    DATABASE_URL: str = f"sqlite:///{DATA_DIR / 'ai_teacher.db'}"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'ai_teacher.db'}")
     CHROMA_PERSIST_DIRECTORY: str = str(DATA_DIR / "chroma_db")
     UPLOAD_DIRECTORY: str = str(DATA_DIR / "uploads")
     

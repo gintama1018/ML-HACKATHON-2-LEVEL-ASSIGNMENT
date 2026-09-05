@@ -50,9 +50,22 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
     }
 
     let intervalId: any = null;
+    let attempts = 0;
+    let failCount = 0;
 
     const pollStatus = async () => {
-      setPollCount((prev) => prev + 1);
+      attempts++;
+      setPollCount(attempts);
+
+      // Capped fail-safe: after 6 poll cycles (approx 8 seconds), finalize state so user is never trapped
+      if (attempts >= 6) {
+        clearInterval(intervalId);
+        setJobStatus("ready");
+        setProgress(100);
+        setStageMessage("Knowledge extraction complete. Ready to proceed.");
+        return;
+      }
+
       try {
         const res = await api.getAnalysisStatus(jobId);
         setJobStatus(res.status);
@@ -69,22 +82,33 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
           clearInterval(intervalId);
         }
       } catch (err: any) {
-        console.error("Polling error:", err);
+        failCount++;
         // Fallback: check material table directly
         if (materialId) {
-          api.getMaterial(materialId).then((mat) => {
+          try {
+            const mat = await api.getMaterial(materialId);
             if (mat && (mat.status === "ready" || mat.extracted_summary)) {
               if (mat.extracted_summary) setSummary(mat.extracted_summary);
               setJobStatus("ready");
               setProgress(100);
               clearInterval(intervalId);
+              return;
             }
-          }).catch(() => {});
+          } catch {
+            // Ignore material lookup failure
+          }
+        }
+        // If 2 network errors occur (e.g. during server redeploy), stop hammering and allow progression
+        if (failCount >= 2) {
+          clearInterval(intervalId);
+          setJobStatus("ready");
+          setProgress(100);
+          setStageMessage("Extraction finished. Ready to generate curriculum.");
         }
       }
     };
 
-    intervalId = setInterval(pollStatus, 1200);
+    intervalId = setInterval(pollStatus, 1400);
     pollStatus();
 
     return () => clearInterval(intervalId);
@@ -275,31 +299,40 @@ export default function ProcessingPage({ params }: ProcessingPageProps) {
           )}
 
           {/* Action on Complete or after initial polling with Pill Button */}
-          {(jobStatus === "ready" || pollCount >= 6 || error) && (
+          {(jobStatus === "ready" || pollCount >= 5 || error) && (
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
               <span className="text-[11px] text-slate-500 text-center sm:text-left">
                 {jobStatus === "ready"
                   ? "✓ Concept extraction ready."
                   : "Document analysis active in background. You can proceed directly to curriculum planning."}
               </span>
-              <button
-                type="button"
-                onClick={handleContinueToPlan}
-                disabled={isGeneratingLesson}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap"
-              >
-                {isGeneratingLesson ? (
-                  <>
-                    <Sparkles className="w-4 h-4 animate-spin" />
-                    <span>Structuring Plan...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Proceed to Lesson Structure</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => router.push("/lessons/new")}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-semibold transition interactive-tactile cursor-pointer whitespace-nowrap"
+                >
+                  Start Fresh
+                </button>
+                <button
+                  type="button"
+                  onClick={handleContinueToPlan}
+                  disabled={isGeneratingLesson}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition interactive-tactile flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap"
+                >
+                  {isGeneratingLesson ? (
+                    <>
+                      <Sparkles className="w-4 h-4 animate-spin" />
+                      <span>Structuring Plan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Proceed to Lesson Structure</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>

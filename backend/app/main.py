@@ -52,8 +52,14 @@ async def lifespan(app: FastAPI):
 os.makedirs("./static/videos", exist_ok=True)
 os.makedirs(settings.UPLOAD_DIRECTORY, exist_ok=True)
 
-# Initialize database schema
-Base.metadata.create_all(bind=engine)
+# Initialize database schema safely
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    logger.error(f"Failed to create schema on primary engine: {e}. Retrying with fallback engine.")
+    from app.database import get_engine
+    fallback_engine = get_engine()
+    Base.metadata.create_all(bind=fallback_engine)
 
 app = FastAPI(
     title=settings.APP_NAME,

@@ -58,11 +58,14 @@ class UnifiedLLMService:
         raw_candidates = [
             model_name,
             self.gemini_fast_model,
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest",
+            "gemini-3.6-flash",
+            "gemini-3.7-flash",
             "gemini-3.5-flash",
             "gemini-flash-latest",
-            "gemini-3.5-flash-lite",
-            "gemini-3-flash-preview",
-            "gemini-2.5-flash"
+            "gemini-pro-latest"
         ]
         deprecated_patterns = ["2.5-pro", "1.5", "2.0", "2.5-flash-lite"]
         candidates = []
@@ -70,29 +73,25 @@ class UnifiedLLMService:
             if m and m not in candidates and not any(dp in m for dp in deprecated_patterns):
                 candidates.append(m)
         if not candidates:
-            candidates = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite"]
+            candidates = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash"]
         
         last_err = None
         for candidate in candidates:
-            for attempt in range(2):
-                try:
-                    model = genai.GenerativeModel(
-                        model_name=candidate,
-                        system_instruction=system_prompt,
-                        generation_config={"temperature": temperature, "max_output_tokens": 8192}
-                    )
-                    response = model.generate_content(user_prompt)
-                    if response and response.text:
-                        return response.text
-                except Exception as e:
-                    err_msg = str(e)
-                    logger.warning(f"Gemini generation with {candidate} (attempt {attempt+1}) failed: {err_msg}")
-                    last_err = e
-                    if "429" in err_msg or "quota" in err_msg.lower():
-                        import time
-                        time.sleep(1.0)
-                    else:
-                        break  # Do not retry on non-transient errors for this model
+            try:
+                model = genai.GenerativeModel(
+                    model_name=candidate,
+                    system_instruction=system_prompt,
+                    generation_config={"temperature": temperature, "max_output_tokens": 8192}
+                )
+                response = model.generate_content(user_prompt)
+                if response and response.text:
+                    return response.text
+            except Exception as e:
+                err_msg = str(e)
+                logger.warning(f"Gemini generation with {candidate} failed: {err_msg}")
+                last_err = e
+                # If rate limited (429) or quota exceeded, immediately try next candidate model
+                continue
         if last_err:
             raise last_err
         raise RuntimeError("Gemini model generation produced no output.")

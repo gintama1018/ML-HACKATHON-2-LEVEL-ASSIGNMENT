@@ -19,8 +19,8 @@ class Settings(BaseSettings):
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     # Current active working model IDs for Google Gemini:
-    GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-3.5-flash")
-    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-3.5-flash")
+    GEMINI_REASONING_MODEL: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-3.5-flash-lite")
+    GEMINI_FAST_MODEL: str = os.getenv("GEMINI_FAST_MODEL", "gemini-3.5-flash-lite")
     
     # Storage Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
